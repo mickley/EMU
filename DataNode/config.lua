@@ -1,3 +1,20 @@
+--[[ 
+
+##### Lua Configuration #####
+This file is run by init.lua and allows simple configurations to be loaded
+In particular, it sets the next file to be run by init.lua (if any)
+Replace the EDITME sections with your own information
+
+##### Version History #####
+- 5/23/2016 JGM - Version 1.0:
+		- Initial version
+- 8/23/2016 JGM - Version 1.1:
+		- Added settings for wifi network, time sync, timezone, voltage measuring and thingspeak
+
+
+--]]
+
+
 -- ########### Configuration ###########
 -- Set configuration variables here
 
