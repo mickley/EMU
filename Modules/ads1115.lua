@@ -20,6 +20,8 @@ https://github.com/adafruit/Adafruit_ADS1X15
 * setRate(sampling_rate) - Sets the sampling rate (samples/second)
 * setComparator(low, high, queue, latch, alert, mode) - Enables the comparator
 
+##### Required Firmware Modules #####
+bit, gpio, i2c, tmr
 
 ##### Version History #####
 - 8/29/2016 JGM - Version 0.1:
