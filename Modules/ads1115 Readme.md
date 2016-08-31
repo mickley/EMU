@@ -144,7 +144,7 @@ The ADS1115 can be configured to use a particular address by connecting the ADDR
 | 0x4B           | SCL                  |
 
 #### Returns
-`true` if , `false` if 
+`true` if an ADS1115 was found at the specified address, `false` if no ADS1115 was found
 
 #### Example
 ```Lua
