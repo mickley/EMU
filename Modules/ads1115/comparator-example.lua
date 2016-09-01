@@ -1,3 +1,6 @@
+-- This is an example of using the comparator on the ADS1115 to 
+-- trigger the ALERT pin when certain conditions are met
+
 -- Set the SDA and SCL pins to use for I²C communication
 sda = 2 -- GPIO4
 scl = 1 -- GPIO5

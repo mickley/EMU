@@ -12,6 +12,14 @@ The ADS1115 is a precision analog to digital converter (ADC).  It reads the volt
 
 Further information can be found in the [Datasheet](http://www.ti.com/lit/ds/symlink/ads1115.pdf)
 
+This module uses a lot of RAM: 12-14kB.  Always release the module as soon as you're done with it to free up that memory.  See below for example:
+
+```Lua
+-- Release the module to free up memory
+ads1115 = nil
+package.loaded["ads1115"] = nil
+```
+
 ### ADS1115 Module Functions
 
 | Function                                         | Reference                                    |
@@ -40,8 +48,6 @@ Also sets default measurement configuration.
 
 #### Returns
 `true` if a sensor is found, `false` if no sensor is present on the I²C pins specified.
-
-
 
 ## ads1115.readADC()
 Reads the ADC pins configured by `channel` and returns a 15 bit signed number that signifies the voltage.
@@ -91,8 +97,8 @@ ads1115 = require("ads1115")
 -- Initialize the module with SDA = 2, SCL = 1
 ads1115.init(2, 1)
 
--- Get a value from channel 0
-val = ads1115.readADC(0)
+-- Get a value from channel A0 and print
+local val = ads1115.readADC(0)
 print(val)
 
 -- Release the module to free up memory
@@ -115,13 +121,12 @@ value converted into millivolts
 
 #### Example
 ```Lua
--- Get a value from channel 0
-val = ads1115.readADC(0)
+-- Get a value from channel A0
+local val = ads1115.readADC(0)
 
 -- Convert to millivolts and print
-mvolts = ads1115.mvolts(val)
+local mvolts = ads1115.mvolts(val)
 print(mvolts)
-
 ```
 
 
@@ -239,22 +244,56 @@ ads1115.setRate(860)
 
 
 ## ads1115.setComparator()
-Enables and configures the comparator.
+Enables and configures the comparator.  
+
+The ADS1115 has a comparator function, which compares the output of one of the ADC channels to a low and high threshold.  It controls the ALERT pin, which can output a signal when certain conditions are met.  This signal can be programmed to be either HIGH (+) or LOW (-).
+
+Two modes are provided:
+* Hysteresis mode will activate when the high threshold is met and deactivate when the low threshold is met
+* Window mode will activate when either the high threshold or the low threshold are met.
+
+Both thresholds take the form of a number between -32767 and 32767 that corresponds to a voltage at the given [PGA](#ads1115setpga) setting.  For example, at +/- 6.144 Volts, a 3 volt threshold would correspond to 3 / 6.144 * 32767 = 16000.
+
+Additionally, there is a latch function, that when enabled will keep the ALERT pin activated even after the comparator conditions are no longer met.  When latched, it can only be deactivated by taking another reading via [readADC()](#ads1115readadc) when comparator conditions are within the thresholds. 
 
 #### Syntax
 `ads1115.setComparator(low, high, queue, latch, alert, mode)`
 
 #### Parameters
-- `low` The lower threshold for the comparator.  Must be between -32767 and 32767 and less than the high threshold
-- `high` The higher threshold for the comparator.  Must be between -32767 and 32767 and greater than the low threshold
-- `queue` 
-- `latch` Set to 1 to enable a latch or 0 to disable.  This keeps the ALERT pin activated until manually turned off.
-- `alert` Set to `"high"` or `"low"` to et whether the ALERT pin is activated as HIGH (+) or Low (-) when triggered by the comparator
-- `mode` Comparator mode.  Set to `hysteresis` , or set to `window`
+- `low` The lower threshold for the comparator.  Must be between -32767 and 32767 and < the high threshold.
+- `high` The higher threshold for the comparator.  Must be between -32767 and 32767 and > the low threshold.
+- `queue` Set how many measurements must cross the threshold to trigger activation.  Valid options are `1`, `2`, and `4.` 
+- `latch` Set to `true` to enable a latch or `false` to disable.
+- `alert` Set to `"high"` or `"low"` to set whether the ALERT pin is activated as HIGH (+) or Low (-) when triggered by the comparator.
+- `mode` Comparator mode.  Set to `"hysteresis"` , or set to `"window"`,
 
 #### Returns
-`true` if , `false` if 
+`true` if comparator enabled, `false` if comparator disabled and settings invalid
+
 
 #### Example
 ```Lua
+-- Load the module
+ads1115 = require("ads1115")
+
+-- Initialize the module with SDA = 2, SCL = 1
+ads1115.init(2, 1)
+
+-- Set the sensor to measure continuously
+ads1115.setMode("continuous")
+
+-- Trigger when voltage goes above 3V (3 / 6.144 * 32767 = 15999)
+-- Turn off trigger when voltage goes below 2V (2 / 6.144 * 32767 = 10666)
+-- Only require one measurement to cross threshold to trigger
+-- Alert pin will go low when activated
+-- No latching, hysteresis mode
+ads1115.setComparator(10667, 16000, 1, false, "low", "hysteresis")
+
+-- Get a value from channel A0 and print
+local val = ads1115.readADC(0)
+print(val)
+
+-- Release the module to free up the memory
+ads1115 = nil
+package.loaded["ads1115"] = nil
 ```
