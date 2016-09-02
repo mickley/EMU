@@ -66,13 +66,14 @@ val0 = ads1115.readADC(0)
 val1 = ads1115.readADC(1)
 ```
 
-Because the ADS1115 needs some time to finish measuring a sample, there is a delay built into readADC that can become quite long if samples per second are low (up to 125 ms).  This could become a problem if other events are running on the NodeMCU (such as timers), so keep that in mind when choosing slow sampling rates.
+Because the ADS1115 needs some time to finish measuring a sample, readADC() will not return the latest sample value in single-shot mode unless a callback function is specified.  This allows readADC() to wait until conversion is finished before returning a value through the callback function.
 
 #### Syntax
-`ads1115.readADC(channel)`
+`ads1115.readADC(channel, [function(value)])`
 
 #### Parameters
 - `channel` The ADC channel to measure.  See below for channel options.
+- (optional) `function(value)` A callback function to run after conversion is finished.  This function gets the ADC value as an argument.  The amount of time before the callback function runs is dictated by the sampling rate, e.g. a sampling rate of 8 samples/second would run after 1/8 second (125 ms).  
 
 | channel | (+) | (-)    | Type         |
 |---------|:---:|:------:|--------------|
@@ -97,9 +98,10 @@ ads1115 = require("ads1115")
 -- Initialize the module with SDA = 2, SCL = 1
 ads1115.init(2, 1)
 
--- Get a value from channel A0 and print
-local val = ads1115.readADC(0)
-print(val)
+-- Get a value from channel A0 and make a callback function to print the result
+ads1115.readADC(0, function(val)
+    print(val)
+end)
 
 -- Release the module to free up memory
 ads1115 = nil
@@ -122,10 +124,10 @@ value converted into millivolts
 #### Example
 ```Lua
 -- Get a value from channel A0
-local val = ads1115.readADC(0)
+val = ads1115.readADC(0)
 
 -- Convert to millivolts and print
-local mvolts = ads1115.mvolts(val)
+mvolts = ads1115.mvolts(val)
 print(mvolts)
 ```
 
@@ -257,15 +259,16 @@ Both thresholds take the form of a number between -32767 and 32767 that correspo
 Additionally, there is a latch function, that when enabled will keep the ALERT pin activated even after the comparator conditions are no longer met.  When latched, it can only be deactivated by taking another reading via [readADC()](#ads1115readadc) when comparator conditions are within the thresholds. 
 
 #### Syntax
-`ads1115.setComparator(low, high, queue, latch, alert, mode)`
+`ads1115.setComparator(mode, [low, high, latch, queue, alert])`
 
 #### Parameters
-- `low` The lower threshold for the comparator.  Must be between -32767 and 32767 and < the high threshold.
-- `high` The higher threshold for the comparator.  Must be between -32767 and 32767 and > the low threshold.
-- `queue` Set how many measurements must cross the threshold to trigger activation.  Valid options are `1`, `2`, and `4.` 
-- `latch` Set to `true` to enable a latch or `false` to disable.
-- `alert` Set to `"high"` or `"low"` to set whether the ALERT pin is activated as HIGH (+) or Low (-) when triggered by the comparator.
-- `mode` Comparator mode.  Set to `"hysteresis"` , or set to `"window"`,
+- `mode` Comparator mode.  Set to `"hysteresis"` for hysteresis mode, `"window"` for window mode, or `"disable"` to disable the comparator.
+- (optional) `low` The lower threshold for the comparator.  Must be between -32767 and 32767 and < the high threshold. Default is 0
+- (optional) `high` The higher threshold for the comparator.  Must be between -32767 and 32767 and > the low threshold. Default is 32767
+- (optional) `latch` Set to `true` to enable a latch or `false` (default) to disable.
+- (optional) `queue` Set how many measurements must cross the threshold to trigger activation.  Valid options are `1` (default), `2`, and `4`.
+- (optional) `alert` Set to `"high"` or `"low"` (default) to set whether the ALERT pin is activated as HIGH (+) or Low (-) when triggered by the comparator.
+
 
 #### Returns
 `true` if comparator enabled, `false` if comparator disabled and settings invalid
@@ -287,10 +290,10 @@ ads1115.setMode("continuous")
 -- Only require one measurement to cross threshold to trigger
 -- Alert pin will go low when activated
 -- No latching, hysteresis mode
-ads1115.setComparator(10667, 16000, 1, false, "low", "hysteresis")
+ads1115.setComparator("hysteresis", 10667, 16000)
 
 -- Get a value from channel A0 and print
-local val = ads1115.readADC(0)
+val = ads1115.readADC(0)
 print(val)
 
 -- Release the module to free up the memory
