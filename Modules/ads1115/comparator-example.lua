@@ -25,7 +25,7 @@ ads1115.setMode("continuous")
 -- Only require one measurement to cross threshold to trigger
 -- Alert pin will go low when activated
 -- No latching, hysteresis mode
-ads1115.setComparator(10667, 16000, 1, false, "low", "hysteresis")
+ads1115.setComparator("hysteresis", 10667, 16000)
 
 -- Variable to count the number of times we've measured
 count = 0

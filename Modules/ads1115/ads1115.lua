@@ -47,6 +47,8 @@ bit, gpio, i2c, tmr
       If this is defined, it will wait until conversion is finished before
       reading the value, and will return the value as an argument in the callback
       function.
+- 9/2/2016 JGM - Version 0.5:
+    - Rewrote setComparator() to use optional arguments
 
 --]]
 
@@ -527,53 +529,61 @@ function M.setRate(setrate)
 
     -- Return true for success
     return true
-
 end
 
 
 -- Function to set the comparator
-function M.setComparator(low, high, queue, latch, alert, mode)
+function M.setComparator(mode, ...)
 
     -- Clear the comparator settings
     comp = 0
 
-    -- Set the comparator queue mode = # of times to exceed threshholds
-    if queue == 1 then
-        comp = bit.bor(comp, CONFIG.COMP_QUEUE_1)
-    elseif queue == 2 then
-        comp = bit.bor(comp, CONFIG.COMP_QUEUE_2)
-    elseif queue == 4 then
-        comp = bit.bor(comp, CONFIG.COMP_QUEUE_4)
-    else
-    
-        -- Disable comparator
-        comp = CONFIG.COMP_DISABLE 
+    -- Get the low and high arguments
+    local low = arg[1]
+    local high = arg[2]
 
-        print("Err: Comp queue: ".. queue .. "invalid. Comparator disabled")
-        --print("Valid options: 1, 2, 4")
-
-        -- Return false for failure
-        return false
-        
-    end
-
-    -- Add latch if specified, otherwise ignore
-    if latch == true then
+    -- Add latch (arg[3]) if specified, otherwise ignore
+    if arg[3] == true then
         comp = bit.bor(comp, CONFIG.COMP_LATCH)
     end
 
-    -- Set alert pin action to HIGH if specified (low or nil ignore)
-    if alert == "high" then
+    -- Set the comparator queue mode (arg[4]) = # of times to exceed threshholds
+    if arg[4] == 2 then
+        comp = bit.bor(comp, CONFIG.COMP_QUEUE_2)
+    elseif arg[4] == 4 then
+        comp = bit.bor(comp, CONFIG.COMP_QUEUE_4)
+    else
+        comp = bit.bor(comp, CONFIG.COMP_QUEUE_1)
+    end
+
+    -- Set alert pin action (arg[5]) to HIGH if specified (low or nil ignore)
+    if arg[5] == "high" then
         comp = bit.bor(comp, CONFIG.COMP_ALERT_HIGH)
     end 
 
-    -- Set comparator mode to window if specified (hysteresis or window ignore)
-    if mode == "window" then
-        comp = bit.bor(comp, CONFIG.COMP_MODE_WINDOW)
+    -- The low threshold argument is set
+    if low ~= nil then
+        if low < -32767 or low > 32767 then
+            -- Out of bounds error
+
+            -- Disable comparator
+            comp = CONFIG.COMP_DISABLE
+
+            return false
+        end
+
+        -- If low < 0, convert to a positive number & add the sign bit
+        if low < 0 then
+            low = bit.bor(low * -1, 0x8000)
+        end
+
+        -- Write the low threshold register
+        writeRegister(address, REG_THRESHLOW, low)
+
     end
 
-    -- High threshold must be higher than low threshold
-    if high > low then
+    -- The low threshold argument is set
+    if low ~= nil then
 
         if high < -32767 or high > 32767 then
             -- Out of bounds error
@@ -584,37 +594,21 @@ function M.setComparator(low, high, queue, latch, alert, mode)
             return false
         end
 
-        if low < -32767 or low > 32767 then
-            -- Out of bounds error
-
-            -- Disable comparator
-            comp = CONFIG.COMP_DISABLE
-
-            return false
-        end
-
         -- If high < 0, convert to a positive number & add the sign bit
         if high < 0 then
             high = bit.bor(high * -1, 0x8000)
         end
 
-        -- If low < 0, convert to a positive number & add the sign bit
-        if low < 0 then
-            low = bit.bor(low * -1, 0x8000)
-        end
-
-        -- Write the threshold values to their registers
-        writeRegister(address, REG_THRESHLOW, low)
+        -- Write the high threshold register
         writeRegister(address, REG_THRESHHIGH , high)
 
+    end
 
-    else
-        -- Throw error: high can't be <= low
-
-        -- Disable comparator
+    -- Set comparator mode to window or disable if specified (hysteresis for anything else)
+    if mode == "window" then
+        comp = bit.bor(comp, CONFIG.COMP_MODE_WINDOW)
+    elseif mode == "disable" then
         comp = CONFIG.COMP_DISABLE 
-
-        return false
     end
 
     -- Return true if successful
