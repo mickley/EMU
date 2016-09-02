@@ -41,7 +41,12 @@ bit, gpio, i2c, tmr
     - Added setComparator() function to enable and configure the comparator
     - Added setMode() function to set single shot or continuous mode
     - Numerous bug fixes, and cleaned up code considerably
-    
+- 9/2/2016 JGM - Version 0.4:
+    - Fixed error in setRate() that resulted in improper delays
+    - readADC() now optionally takes a callback function as the second argument
+      If this is defined, it will wait until conversion is finished before
+      reading the value, and will return the value as an argument in the callback
+      function.
 
 --]]
 
@@ -279,7 +284,7 @@ end
 -- Function to read the value for a given ADC channel setup
 -- Can read either single-ended channels (0-3) or
 -- differential channels (1 vs 0, 3 vs 0, 3 vs 1, 3 vs 2)
-function M.readADC(channel)
+function M.readADC(channel, ...)
 
     -- Variable to hold channel configuration setting
     local mux = 0
@@ -318,27 +323,52 @@ function M.readADC(channel)
     -- Write the configuration to the config register
     writeRegister(address, REG_CONFIG, config)
 
-    -- Wait for the ADS1115 to take a reading
-    -- TODO: better way of doing this?
-    tmr.delay(delay)
+    -- Check if the first optional argument is a function
+    -- If so, we have a callback function to run
+    if type(arg[1]) == "function" then
 
-    -- Run readRegister(), but discard the value
-    -- For some reason, if we don't do this, we get the LAST value
-    readRegister(address, REG_CONVERT)
-
-    -- Get the the value from the conversion register again
-    local value = readRegister(address, REG_CONVERT)
-
-    -- Set value to zero if we got a negative # from a single-ended channel
-    -- this would mean simply that there was no connection to ground
-    -- Or that "ground" had a higher voltage
-    if value < 0 and channel < 10 then
-        value = 0
-    end 
-
-    -- Return the value
-    return value
+        -- TODO: replace with tmr.create() dynamic timer in new firmware
+        -- No need to worry if timer is taken
+        -- tmr.create():alarm(delay, tmr.ALARM_SINGLE, function()
+        tmr.alarm(6, delay, tmr.ALARM_SINGLE, function()
     
+            -- Run readRegister(), but discard the value
+            -- For some reason, if we don't do this, we get the LAST value
+            --readRegister(address, REG_CONVERT)
+        
+            -- Get the value from the conversion register
+            local value = readRegister(address, REG_CONVERT)
+        
+            -- Set value to zero if we got a negative # from a single-ended channel
+            -- this would mean simply that there was no connection to ground
+            -- Or that "ground" had a higher voltage
+            if value < 0 and channel < 10 then
+                value = 0
+            end 
+    
+            -- Run the callback function with the value as the argument
+            arg[1](value)
+            
+        end)
+
+        -- Return nil, since the value is returned via callback function
+        return nil
+
+    else 
+
+        -- Get the value from the conversion register
+        local value = readRegister(address, REG_CONVERT)
+    
+        -- Set value to zero if we got a negative # from a single-ended channel
+        -- this would mean simply that there was no connection to ground
+        -- Or that "ground" had a higher voltage
+        if value < 0 and channel < 10 then
+            value = 0
+        end 
+
+        -- Return the value, since there is no callback function
+        return value
+    end
 end
 
 
@@ -351,7 +381,6 @@ function M.mvolts(value)
     else
         return nil -- Return nil if the value is out of range
     end
-
 end
 
 
@@ -494,7 +523,7 @@ function M.setRate(setrate)
 
     -- set the delay to wait before reading the conversion register
     -- This is the inverse of the sampling rate in milliseconds
-    delay = math.ceil( 1000 / rate )
+    delay = math.ceil( 1000 / setrate )
 
     -- Return true for success
     return true
