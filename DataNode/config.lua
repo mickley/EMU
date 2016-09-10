@@ -7,10 +7,13 @@ Replace the EDITME sections with your own information
 
 ##### Version History #####
 - 5/23/2016 JGM - Version 1.0:
-		- Initial version
+	- Initial version
+       
 - 8/23/2016 JGM - Version 1.1:
-		- Added settings for wifi network, time sync, timezone, voltage measuring and thingspeak
+	- Added settings for wifi network, time sync, timezone, voltage measuring and thingspeak
 
+- 9/10/2016 JGM - Version 1.2:
+    - Added wifi_required variable for init.lua v2.0
 
 --]]
 
@@ -22,8 +25,12 @@ Replace the EDITME sections with your own information
 wifi_ssid = "EDITME"
 wifi_pass = "EDITME"
 
--- Set startup routine to run by default
-startup = "sensorlog.lua"
+-- Is Wifi required for startup routine?
+-- If so, then init.lua will try to wait until connected before running startup
+wifi_required = true
+
+-- Set startup file to execute by default
+startup = "EDITME"
 
 --Interval to sleep in seconds
 interval = (15 * 60)
