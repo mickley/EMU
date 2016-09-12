@@ -9,8 +9,18 @@ controls which messages get printed (if you only want the most important ones)
 
 
 ##### Public Function Reference #####
-init() - Initialize logging.  Sets up the defaults and/or reads the global variables
-log(message, loglevel) - log a message with a  given loglevel
+* init(file, logLevel, logPrint, logFile) - Initialize logging.  
+  Sets up the default settings for the level of logging to perform, 
+  file to log to, etc.
+* log(message, loglevel) - log a message with a given loglevel
+
+
+##### Public Log Levels ##### 
+Level 0: Logging off
+Level 1: Log errors
+Level 2: Log errors and warnings
+Level 3: Log errors + warnings + status messages
+Level 4: Log everything, including debug messages
 
 ##### Required Firmware Modules #####
 file, rtctime
@@ -19,20 +29,19 @@ file, rtctime
 - 9/1/2016 JGM - Version 0.1:
     - Initial version
 
+- 9/11/2016 JGM - Version 0.2:
+    - Tightened up the code a bit.  
+    - Settings moved to init() function instead of using global variables
+    - Removed log level module variables
 
 --]]
 
 
 -- ############### Module Initiation ###############
 
--- Set module name to the current filename
-local moduleName = ...
 
 -- Make a table called M, this becomes the class
 local M = {}
-
--- 
-_G[moduleName] = M
 
 
 -- ############### Local variables ###############
@@ -41,27 +50,6 @@ _G[moduleName] = M
 -- Local variables to store various settings
 local level, filename, toprint, tofile
 
--- Globals
--- LogLevel 0 for off, 1 for errors, 2 for debug
--- LogPrint true for also printing log messages
--- LogToFile true to log to file
--- Logfile filename
-
--- ############### Public Log Levels ###############
-
-M.off       = 0 -- Level 0: Logging off
-M.error     = 1 -- Level 1: only log errors
-M.warn      = 2 -- Level 2: Log errors and warnings
-M.normal    = 3 -- Level 3: Log errors + warnings + status messages
-M.debug     = 4 -- Level 4: Log everything
-
-
--- ############### Private Functions ###############
-
--- Function to display # of digits for date/time
---local function digs(number, digits)
---    return string.format("%0" .. (digits or 0) .. "d", number)
---end
 
 -- ############### Public Functions ###############
 
@@ -69,42 +57,26 @@ M.debug     = 4 -- Level 4: Log everything
 -- Initialize the logging module
 -- This checks to see if global variables are set
 -- If not, it sets up some defaults
-function M.init()
+function M.init(file, logLevel, logPrint, logFile)
 
-    -- Use the LogLevel if set, and default to debug level
-    if LogLevel ~= nil and LogLevel >= 0 and LogLevel <= 4 and LogLevel == math.floor(LogLevel) then
-        level = LogLevel
-    else
-        level = 4
-    end
+    -- Use the file filename if it's set or default to node.log
+    filename = type(file) == "string" and file or "node.log"
 
-    -- Use the Logfile filename if set and default to node.log
-    if type(Logfile) == string then
-        filename = Logfile
-    else
-        filename = "node.log"
-    end
+    -- Use the logLevel if set and valid, or default to debug level (4)
+    level = logLevel ~= nil and logLevel >= 0 and logLevel <= 4 and 
+        logLevel == math.floor(logLevel) and logLevel or 4
 
-    -- Disable printing if specified
-    if LogPrint == false then
-        toprint = false
-    else
-        toprint = true
-    end
+    -- Disable printing if specified, and default to enabled
+    toprint = logPrint and true or true
 
-    -- Disable logging to file if specified
-    if LogFile == false then
-        tofile = false
-    else
-        tofile = true
-    end
+    -- Disable logging to file if specified, and default to enabled
+    tofile = logFile and true or true
 
-    return nil
 end
 
 
--- Log the message
--- Can either print the message out, log to file, or both
+-- Log the message if it's part of the configured log level
+-- Can either print the message out to serial terminal, log to file, or both
 function M.log(message, lvl)
 
     -- Local function variables
@@ -118,6 +90,7 @@ function M.log(message, lvl)
 
     -- Check to see if this message should be logged
     if lvl <= level then
+    
         -- Get the current time
         tm = rtctime.epoch2cal(rtctime.get())
         
@@ -127,10 +100,6 @@ function M.log(message, lvl)
             string.format("%02d", tm.hour) .. ":" .. 
             string.format("%02d", tm.min) .. ":" .. 
             string.format("%02d", tm.sec)
-
-        --stamp = tm.mon .. "/" .. digs(tm.day, 2) .. "/" .. digs(tm.year, 2) .. 
-        --    " " .. digs(tm.hour, 2) .. ":" .. digs(tm.min, 2) .. ":" .. 
-        --    digs(tm.sec, 2)
 
         -- Construct the message type
         if lvl == 1 then
@@ -169,7 +138,7 @@ function M.log(message, lvl)
 
             -- If less than 1000 bytes is left, log a warning
             elseif space < 1000 then
-                M.log("Not much space left for logging: "..space.." bytes", M.warn)
+                M.log("Running out of logging space: "..space.." bytes", M.warn)
             end
 
             -- Open the logfile filename for writing
@@ -188,6 +157,7 @@ function M.log(message, lvl)
     return true
     
 end
+
 
 -- Return the module table
 return M
