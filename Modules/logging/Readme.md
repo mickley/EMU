@@ -7,8 +7,8 @@ It's especially useful because it can log all errors, warnings, messages etc. to
 
 ### Features
 * Writes messages to a file or the serial terminal or both.
-* Allows messages to have different levels: eg errors are more important than warnings or debug info
-* The level of messages that are logged can be adjusted, so that less important messages are ignored..
+* Allows messages to have different levels: eg errors are more important than warnings or debug info.
+* The level of messages that are logged can be adjusted, so that less important messages are ignored.
 
 
 ### Logging Module Functions
@@ -30,9 +30,9 @@ The logLevel setting allows us to specify which messages get logged.  This allow
 
 #### Parameters
 - (optional) `file` Filename to log to.  If not specified, defaults to `node.log`
-- (optional) `logLevel` The level of messages to log.  See table below for the options.  Defaults to `4`: all messages.
+- (optional) `logLevel` The level of messages to log.  See table below for the options.  Defaults to `4` (all messages).
 - (optional) `logPrint` Logs to the serial terminal if `true`.  Defaults to `true`
-- (optional) `logFile` Logs to the file specified if `true` Defaults to `true`
+- (optional) `logFile` Logs to the file specified if `true`. Defaults to `true`
 
 | logLevel | Messages that are logged                                  |
 |----------|-----------------------------------------------------------|
@@ -48,7 +48,7 @@ The logLevel setting allows us to specify which messages get logged.  This allow
 
 ## log.log()
 
-Logs a message with the specified log level.  If that log level is less than or equal to the logLevel setting, the message will be logged.  Otherwise it'll be ignored.
+Logs a message with the specified log level.  If that log level is l <= the logLevel setting, the message will be logged.  Otherwise it'll be ignored.
 
 #### Syntax
 `log.log(message, level)`
@@ -65,7 +65,7 @@ Logs a message with the specified log level.  If that log level is less than or 
 | 4        | Debug Message  |
 
 #### Returns
-`true` if logging was successful, or `false` if there was not enough space or the loglevel was invalid
+`true` if logging was successful, or `false` if there was not enough space or the level was invalid
 
 #### Example
 ```Lua
