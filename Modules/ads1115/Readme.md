@@ -35,19 +35,29 @@ package.loaded["ads1115"] = nil
 
 
 ## ads1115.init()
-Initializes I²C communication with an ADS1115 module.  Sets which pins to use for I²C and tries to automatically find the I²C address the sensor is using.
+Initializes I²C communication with an ADS1115 module.  Sets which pins to use for I²C sets up default measurement configuration.
 
-Also sets default measurement configuration.
+and tries to automatically find the I²C address the sensor is using.
+
+Also sets default 
 
 #### Syntax
-`ads1115.init(SDA, SCL)`
+`ads1115.init(SDA, SCL, [i2c_address])`
 
 #### Parameters
 - `SDA` The GPIO pin to use for SDA
 - `SCL` The GPIO pin to use for SCL
+- `i2c_address` The I²C address of the sensor.  Valid addresses are below:
+
+| I²C Address    | ADDR pin connection  |
+|----------------|----------------------|
+| 0x48 (default) | Ground (or floating) |
+| 0x49           | VDD (+)              |
+| 0x4A           | SDA                  |
+| 0x4B           | SCL                  |
 
 #### Returns
-`true` if a sensor is found, `false` if no sensor is present on the I²C pins specified.
+`true` if a sensor is found, `false` if no sensor is present on the I²C pins and address specified.
 
 ## ads1115.readADC()
 Reads the ADC pins configured by `channel` and returns a 15 bit signed number that signifies the voltage.
@@ -88,7 +98,7 @@ Because the ADS1115 needs some time to finish measuring a sample, readADC() will
 
 
 #### Returns
-the value as a 15 bit signed number (-32767 to 32767) or `nil` if the reading failed or the channel was invalid
+the value as a 15 bit signed number (-32767 to 32767), `false` if the channel was invalid, or `nil` if a callback function is specified. 
 
 #### Example
 ```Lua
@@ -129,34 +139,6 @@ val = ads1115.readADC(0)
 -- Convert to millivolts and print
 mvolts = ads1115.mvolts(val)
 print(mvolts)
-```
-
-
-## ads1115.setAddress()
-Looks for an ADS1115 on the specified I²C address, and if found configures the module to communicate with that device.
-
-The ADS1115 can be configured to use a particular address by connecting the ADDR pin to the appropriate pin (see below).
-
-#### Syntax
-`ads1115.setAddress(i2c_address)`
-
-#### Parameters
-- `i2c_address` The I²C address to look for an ADS1115 module.  Valid addresses are below:  
-
-| Address        | ADDR pin connection  |
-|----------------|----------------------|
-| 0x48 (default) | Ground (or floating) |
-| 0x49           | VDD (+)              |
-| 0x4A           | SDA                  |
-| 0x4B           | SCL                  |
-
-#### Returns
-`true` if an ADS1115 was found at the specified address, `false` if no ADS1115 was found
-
-#### Example
-```Lua
--- Set I²C address to 0x48 and look for a sensor there
-ads1115.setAddress(0x48)
 ```
 
 
