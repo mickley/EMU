@@ -13,8 +13,7 @@ The commands I'm using with esptool on OSX are below.  You'll have to change the
 python esptool.py --port /dev/cu.wchusbserialfa130 erase_flash 
 
 # Write the firmware file to 0x0000 and the esp_init_data_default file to 0x3fc000
-python esptool.py --port /dev/cu.wchusbserialfa130 write_flash -fs 32m -fm dio 0x0000 Firmware/nodemcu-1.5.4.1-master-29-modules-floatSSL.bin 0x3fc000 Firmware/esp_init_data_default-1.5.4.1.bin 
-
+python esptool.py --port /dev/cu.wchusbserialfa130 write_flash -fs 32m -fm dio 0x0000 nodemcu-2016-09-13-dev-29-modules-floatSSL.bin 0x3fc000 esp_init_data_default-1.5.4.1.bin 
 ```
 
 ## Firmware Options
