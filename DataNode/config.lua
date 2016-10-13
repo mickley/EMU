@@ -15,6 +15,10 @@ Replace the EDITME sections with your own information
 - 9/10/2016 JGM - Version 1.2:
     - Added wifi_required variable for init.lua v2.0
 
+- 10/10/2016 JGM - Version 1.3:
+    - Added wifi_ip and wifi_router variables for setting static IP addresses
+      Using wifi.sta.setip(), this lowers connection time from 1000ms to 155ms
+
 --]]
 
 
@@ -28,9 +32,11 @@ wifi_pass = "EDITME"
 -- Is Wifi required for startup routine?
 -- If so, then init.lua will try to wait until connected before running startup
 wifi_required = true
+wifi_ip = "192.168.3.82"
+wifi_router = "192.168.3.1"
 
 -- Set startup file to execute by default
-startup = "EDITME"
+startup = "test.lua"
 
 --Interval to sleep in seconds
 interval = (15 * 60)
