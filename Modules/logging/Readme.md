@@ -13,10 +13,10 @@ It's especially useful because it can log all errors, warnings, messages etc. to
 
 ### Logging Module Functions
 
-| Function                     | Reference                                    |
-|------------------------------|----------------------------------------------|
-| [log.init()](#loginit)       | Initialize the LCD module                    |
-| [log.log()](#loglog)         | Print a string of characters to the display  |
+| Function                     | Reference                                        |
+|------------------------------|--------------------------------------------------|
+| [log.init()](#loginit)       | Initialize the logging module                    |
+| [log.log()](#loglog)         | Log a message to serial terminal or file or both |
 
 
 
