@@ -19,6 +19,9 @@ Replace the EDITME sections with your own information
     - Added wifi_ip and wifi_router variables for setting static IP addresses
       Using wifi.sta.setip(), this lowers connection time from 1000ms to 155ms
 
+- 11/16/2016 JGM - Version 1.4: 
+    - Added hostname and removed thingspeak API key
+
 --]]
 
 
@@ -32,8 +35,15 @@ wifi_pass = "EDITME"
 -- Is Wifi required for startup routine?
 -- If so, then init.lua will try to wait until connected before running startup
 wifi_required = true
-wifi_ip = "192.168.3.82"
-wifi_router = "192.168.3.1"
+
+-- Set the router IP address and the IP address you want the ESP to have
+-- This speeds up connecting when trying to save power
+wifi_ip = nil
+wifi_router = nil
+
+-- Set the hostname of the ESP
+-- If running a webserver, you can then go to http://hostname
+wifi_hostname = nil
 
 -- Set startup file to execute by default
 startup = "test.lua"
@@ -53,9 +63,6 @@ timeserver2 = "pool.ntp.org"
 
 -- adc.readvdd33() is low by about 0.25V for D1 Mini
 volt_adj = 0.25
-
--- Set Thingspeak API key
-thingspeak_api = "EDITME"
 
 print("Configuration settings loaded")
 -- #####################################
