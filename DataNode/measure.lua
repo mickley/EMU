@@ -1,23 +1,22 @@
 --[[ 
 
-##### Ecological Sensor Logging Script #####
-
-This script reads the BME280 and TLS2561 sensors 
-
-It depends heavily on configuration variables being set in config.lua, 
-so this must be run first
+This script reads the BME280, BH1750, and Soil Moisture sensors
+It saves t
 
 Module requirements:
-ads1115, csv
+ads1115, csv, logging, bh1750
+
 
 Firmware Module requirements:
-
+bit, bme280, file, gpio, i2c, node, rtctime, sntp, tmr, u8g, wifi
 
 ##### Version History #####
 - 10/13/2016 JGM - Version 0.1:
         - Initial version
-
-
+        
+- 11/22/2016 JGM - Version 1.0:
+        - Version for Tim to take to South AFrica
+        
 --]]
 
 
@@ -26,16 +25,16 @@ Firmware Module requirements:
 -- Initialize all the variables we'll be using
 -- Local variables are more efficient
 --local sda scl
-local lux, temp, pressure, humidity, humid, kPa, tempC, tempF, inHG, correction
-local timestamp, time, timestr
+local lux, temp, pressure, humidity, humid, kPa, tempC
+local timestr
 local soilPin, soilDelay
 
--- Set the SDA and SCL pins to use for I�C communication
+-- Set the SDA and SCL pins to use for I?C communication
 sda = 1 -- GPIO4
 scl = 2 -- GPIO5
 
 -- Set the pin to turn on the soil sensor
-soilPin = 5
+soilPin = 7
 
 -- Set the delay before using the soil sensor
 soilDelay = 500
@@ -43,8 +42,8 @@ soilDelay = 500
 --Set the display's I2C address
 disp_addr = 0x3c
 
--- Make sure interval is set correctly, and set to 15s otherwise
-interval = interval ~= nil and interval or 15
+-- Make sure interval is set correctly, and set to 1 minute otherwise
+interval = interval ~= nil and interval or 1
 
 
 -- ########## Ancillary Functions ##########
@@ -52,8 +51,10 @@ interval = interval ~= nil and interval or 15
 
 -- Function to round floating point numbers
 function round(number, digits)
-    return tonumber(string.format("%." .. (digits or 0) .. "f", number))
+    local mult = 10^(digits or 0)
+    return math.floor(number * mult + 0.5) / mult
 end
+
 
 
 -- Function to display # of digits for date/time
@@ -67,11 +68,11 @@ end
 function draw()
 
    -- Display all our stuff
-    disp:drawStr( 5, 10, "Soil Moist.: " .. moist)
-    disp:drawStr( 5, 20, "Temp: " .. tempF)
-    --disp:drawStr( 5, 30, "Humid: " .. humid)
+    disp:drawStr( 5, 10, "Soil Moist.: " .. soil)
+    disp:drawStr( 5, 20, "Temp: " .. tempC)
+    disp:drawStr( 5, 30, "Humid: " .. humid)
     disp:drawStr( 5, 40, "Light: " .. lux)
-    disp:drawStr( 5, 50, "Pressure: " .. inHG)
+    disp:drawStr( 5, 50, "Pressure: " .. kPa)
     disp:drawStr( 5, 60, timestr)
 end
 
@@ -90,6 +91,96 @@ function display()
 end
 
 
+-- Function to get a Unix timestamp, and if specified, sync time with rtctime module
+function timestamp(year, month, day, hour, minute, second, sync)
+
+    -- Calculate leap days
+    leapdays = math.floor((year + 28) / 4 + 1)
+
+    -- Determine if this is a leap year, and account for whether the leap day has occurred
+    if (year - 1972) % 4 == 0  and month <= 2 then leapdays = leapdays - 1 end
+
+    -- Calculate month seconds
+    if month == 1 then
+        month_sec = 0
+    elseif month == 2 then
+        month_sec = 2678400
+    elseif month == 3 then
+        month_sec = 5097600
+    elseif month == 4 then
+        month_sec = 7776000
+    elseif month == 5 then
+        month_sec = 10368000
+    elseif month == 6 then
+        month_sec = 13046400
+    elseif month == 7 then
+        month_sec = 15638400
+    elseif month == 8 then
+        month_sec = 18316800
+    elseif month == 9 then
+        month_sec = 20995200
+    elseif month == 10 then
+        month_sec = 23587200
+    elseif month == 11 then
+        month_sec = 26265600
+    elseif month == 12 then
+        month_sec = 28857600
+    end
+
+    local seconds = (31536000 * (year + 30)) + month_sec + 
+        ((day + leapdays - 1) * 86400) + 
+        (hour * 3600) + (minute * 60) + second
+
+    if sync then rtctime.set(seconds) end
+        
+    return seconds
+end
+
+
+-- ########## Get the time ##########
+
+-- Load the ds3231 module
+ds3231 = require("ds3231")
+
+-- Initialize the DS3231 real time clock
+ds3231.init(sda, scl)
+
+-- Get date and time (don't need to get day of week, so skip that)
+second, minute, hour, _, date, month, year = ds3231.getTime()
+
+-- Make a Unix timestamp and sync with the rtctime module (needed for logging)
+timestamp(year, month, date, hour, minute, second, true)
+
+-- Creat a formatted date/time string
+timestr = month .. "/" .. digs(date, 2) .. "/" .. digs(year, 2) .. 
+    " " .. digs(hour, 2) .. ":" .. digs(minute, 2) .. ":" .. 
+    digs(second, 2) .. " UTC" .. timezone
+
+
+-- Set the next alarm to wake up the ESP at
+-- This will wake up the ESP after the interval specified, on the minute
+ds3231.setAlarm(1, ds3231.MINUTE, 0, minute + interval)
+
+-- Unload the DS3231 real time clock module
+ds3231 = nil
+package.loaded["ds3231"] = nil
+
+
+-- ########## Initialize the logging module  ##########
+
+-- Load the logging module
+log = require("logging")
+
+-- Specify a filename, logging everything
+log.init("logfile.txt")
+
+-- Only log errors
+--log.init("logfile.txt", 1)
+
+-- Log the start
+log.log("Starting up ...", 3)
+
+
 -- ########## Initialize soil moisture pin ##########
 
 
@@ -100,19 +191,19 @@ gpio.mode(soilPin, gpio.OUTPUT)
 gpio.write(soilPin, gpio.LOW)
 
 
--- ########## Initialize Light sensor ##########
-
-
--- Initialize the TSL2561 digital light sensor
-status = tsl2561.init(sda, scl)
-
 
 -- ########## Initialize Temp/Humidity sensor ##########
 
 
 -- Initialize BME280 temp/humidity/pressure sensor in sleep mode (power efficiency)
-bme280.init(sda, scl, nil, nil, nil, 0)
+local bme = bme280.init(sda, scl, nil, nil, nil, 0)
 
+-- Log message
+if bme ~= nil then
+    log.log("BME/BMP sensor found.  Type: " .. bme, 3)
+else
+    log.log("No BME/BMP sensor found", 1)
+end
 
 -- ########## Initialize the display ##########
 
@@ -134,59 +225,105 @@ disp:setFont(u8g.font_6x10)
 -- The main() function measures all our sensors and writes to display & csv
 function main()
 
-    -- Load ADS1115 module
-    ads1115 = require("ads1115")
-    
-    -- Initialize ADS1115 module, sets up configuration
-    ads1115.init(sda, scl)
-
-    -- Maximum voltage to measure is 4.096 volts
-    ads1115.setPGA(4.096)
+    -- Log message
+    log.log("Starting measurement ...", 3)
 
     -- Turn on soil moisture sensors
     gpio.write(soilPin, gpio.HIGH)
+
+    -- Load the BH1750 light module
+    bh1750 = require("bh1750")
+
+    -- Initialize bh1750, high resolution, one time (goes to sleep afterwards)
+    bh1750.init(sda, scl, 0x23, "OneTime_H")
+
+    -- Set the measurement time to the minimum: 117,000 lux
+    bh1750.setMeasurementTime(32)
+
+    -- Start getting a lux measurement
+    bh1750.getLux(function(lx)
+
+        -- Log message
+        if lx ~= nil then
+            log.log("Got lux measurement: " .. lx, 3)
+        else
+            log.log("Error measuring lux", 1)
+        end
+
+        -- Save the value
+        lux = round(lx, 2)
+
+        -- Done with bh1750, so we can unload it 
+        bh1750 = nil
+        package.loaded["bh1750"] = nil
+
+    end)
     
 
     -- Take readings from BME280 in forced mode, and then go back to sleep
     -- The callback function runs after 113ms by default (or set first arg to # of ms)
     -- This gives time for the sensor to take the readings
     bme280.startreadout(0, function ()
-    
+
         -- Get pressure & temperature from BME280
         pressure, temp = bme280.baro() -- hectopascals * 1000, tempC * 100
 
         -- Get humidity from BME280
-        --humidity = bme280.humi() -- RH * 1000
+        humidity = bme280.humi() -- RH * 1000
 
+        -- Log message
+        if humidity ~= nil and pressure ~= nil and temp ~= nil then
+            log.log("Got BME measurements successfully", 3)
+        else
+            log.log("Error getting measurements from BMP/BME", 1)
+        end
+        
         -- Unit conversions
         tempC = temp / 100 -- To Celcius
-        tempF = tempC * 9 / 5 + 32 -- To Fahrenheit
-        --humid = humidity / 1000 -- To relative humidity percentage
+        --tempF = tempC * 9 / 5 + 32 -- To Fahrenheit
+        humid = humidity / 1000 -- To relative humidity percentage
         kPa = pressure / 10000 -- hectopascals * 1000
-        inHG = kPa * 0.295301 -- To inches of mercury
+        --inHG = kPa * 0.295301 -- To inches of mercury
         
         -- Barometric correction for inHG by temperature
         -- From http://www.csgnetwork.com/barcorrecttcalc.html
-        correction = inHG * ((tempF - 28.630) / (1.1123 * tempF + 10978))
-        inHG = round(inHG + correction, 3)
+        --correction = inHG * ((tempF - 28.630) / (1.1123 * tempF + 10978))
+        --inHG = round(inHG + correction, 3)
+
+        
 
     end)
 
-    -- Read the lux value from the light sensor if the sensor has returned OK for status
-    if status == tsl2561.TSL2561_OK then
-        lux = tsl2561.getlux()
-    else
-        print("Error getting lux measurement. Status: " .. status)
-    end
+    -- Log message
+    log.log("Waiting for soil moisture sensor to equilibrate", 3)
 
     -- Set a timer to wait until the soil sensors equilibrate
     tmr.alarm(2, soilDelay, tmr.ALARM_SINGLE, function()
+
+        -- Log message
+        log.log("Soil moisture sensor ready", 3)
+
+        -- Load ADS1115 module
+        ads1115 = require("ads1115")
+        
+        -- Initialize ADS1115 module, sets up configuration
+        ads1115.init(sda, scl)
+    
+        -- Maximum voltage to measure is 4.096 volts
+        ads1115.setPGA(4.096)
     
         -- Read channel A0 using callback function
         ads1115.readADC(0, function(return_val)
     
             -- Get the soil moisture value from the callback
-            moist = return_val
+            soil = return_val
+
+            -- Log message
+            if soil ~= nil  then
+                log.log("Got soil moisture successfully: " .. soil, 3)
+            else
+                log.log("Error getting soil moisture from ADS1115", 1)
+            end
     
             -- Done with ads1115, so we can unload it 
             ads1115 = nil
@@ -194,36 +331,17 @@ function main()
 
             -- Turn off soil moisture sensor
             gpio.write(soilPin, gpio.LOW)
-    
-            -- Get unix timestamp
-            timestamp = rtctime.get()
-
-            -- Check if the timestamp is nill
-            if timestamp ~= nil then
-                -- Convert unix seconds to string
-                time = rtctime.epoch2cal( (timestamp + (timezone * 3600)) )
-                
-                -- Creat a formatted date/time string
-                timestr = time["mon"] .. "/" .. digs(time["day"], 2) .. "/" .. digs(time["year"], 2) .. 
-                    " " .. digs(time["hour"], 2) .. ":" .. digs(time["min"], 2) .. ":" .. 
-                    digs(time["sec"], 2) .. " UTC" .. timezone
-                
-                -- Print out string
-                print(timestr)
-            else
-                timestr = ""
-            end
 
             -- Print out the information
-            print("Light Level: " .. lux .. " lux")
-            print("Temperature: " .. tempF .. " deg F")
-            --print("Humidity: " .. humid .. "%")
-            print("Soil Moisture: " .. moist .. " deg F")
-            print("Pressure: " .. inHG .. " in HG")
+            log.log("Light Level: " .. lux .. " lux", 3)
+            log.log("Temperature: " .. tempC .. " deg C", 3)
+            log.log("Humidity: " .. humid .. "%", 3)
+            log.log("Soil Moisture: " .. soil, 3)
+            log.log("Pressure: " .. kPa .. " kPa", 3)
+            log.log("Time: " .. timestr, 3)
                         
             -- Display our measurements on the display
             display()
-
     
             -- Load the CSV module
             csv = require("csv")
@@ -233,11 +351,10 @@ function main()
     
             -- Set the CSV header
             --data["header"] = {"Soil_Moisture", "Temperature", "Humidity", "Light", "Pressure", "Time"}
-            data["header"] = {"Soil_Moisture", "Temperature", "Light", "Pressure", "Time"}
+            data["header"] = {"Soil_Moisture", "Temperature", "Light", "Pressure", "Humidity", "Time"}
 
             -- Set the CSV data
-            --data[1] = {moist, tempF, humid, lux, inHG, timestr}
-            data[1] = {moist, tempF, lux, inHG, timestr}
+            data[1] = {soil, tempC, lux, kPa, humid, timestr}
          
             -- Write the CSV
             csv.writeCSV(data, "data.csv")
@@ -248,6 +365,17 @@ function main()
 
             -- Delete the data table
             data = nil
+
+            -- Log message
+            log.log("Data saved, going to sleep...", 3)
+
+            -- Give some time for everything to complete and then go to sleep
+            tmr.alarm(3, 100, tmr.ALARM_SINGLE, function()
+
+                -- Sleep indefinitely until the DS3231 wakes it up
+                node.dsleep(0)
+            end)
+            
     
         end)
             
@@ -257,15 +385,5 @@ function main()
 
 end
 
-
--- Run the timer to measure and weigh the soil
-tmr.alarm(1, interval * 1000, tmr.ALARM_AUTO, function() 
-
-    -- 
-    main()
-        
-end)
-
--- Run it right away
+-- Run the main() function (which does all the measuring) right away
 main()
-
