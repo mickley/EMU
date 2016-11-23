@@ -21,7 +21,9 @@ https://github.com/adafruit/Adafruit_ADS1X15
 * setComparator(low, high, queue, latch, alert, mode) - Enables the comparator
 
 ##### Required Firmware Modules #####
-bit, gpio, i2c, tmr
+gpio, i2c, tmr
+
+##### Max RAM usage: 8.5Kb #####
 
 ##### Version History #####
 - 8/29/2016 JGM - Version 0.1:
@@ -59,6 +61,8 @@ bit, gpio, i2c, tmr
 - 9/14/2016 JGM - Version 1.0:
     - Rewritten to use less memory, saving 5-6 Kb
 
+- 11/22/2016 JGM - Version 1.1: 
+    - Removed the requirement of the bit firmware module to save some RAM
     
 --]]
 
@@ -168,8 +172,11 @@ local function writeRegister(address, register, value)
 
     -- Extract the two bytes from the value to write
     -- Have to remove one half and then the other half of the 16 bits
-    local MSB = bit.rshift(value, 8)
-    local LSB = bit.band(value, 0xFF)
+    --local MSB = bit.rshift(value, 8)
+    local MSB = math.floor(value / 256)
+
+    --local LSB = bit.band(value, 0xFF)
+    local LSB = value % 256
     
     -- Write the most significant byte (leftmost 8 bits)
     i2c.write(0, MSB)
@@ -218,7 +225,8 @@ local function readRegister(address, register)
     local LSB = string.byte(bytes, 2)
 
     -- Shift the first byte left 8 spaces
-    MSB = bit.lshift(MSB, 8)
+    --MSB = bit.lshift(MSB, 8)
+    MSB = MSB * 256
 
     -- Controls the sign of the number returned
     local sign = 1 
@@ -227,17 +235,20 @@ local function readRegister(address, register)
 
     -- Check to see if it's a negative number
     -- If so, the leftmost bit will be 1 instead of 0
-    if bit.isset(MSB, 15) then
+    --if bit.isset(MSB, 15) then
+    if MSB > 0x7FFF then -- If it's greater than 32767
 
         -- Set the leftmost bit to zero by ANDing 7FFF
-        MSB = bit.band(MSB, 0x7FFF)
+        --MSB = bit.band(MSB, 0x7FFF)
+        MSB = MSB - 0x8000 -- Subtract 32768
         
         -- Set the sign to negative 
         sign = -1
     end
 
     -- OR the two bytes to concatenate them together & multiply by the sign
-    local value = bit.bor(MSB, LSB) * sign
+    --local value = bit.bor(MSB, LSB) * sign
+    local value = (MSB + LSB) * sign
 
     -- Return the value
     return value
@@ -321,7 +332,8 @@ function M.readADC(channel, callback_func)
     end
 
     -- OR all the configuration settings together and store in config
-    local config = bit.bor(mode, comp, rate, pga, mux)
+    --local config = bit.bor(mode, comp, rate, pga, mux)
+    local config = mode + comp + rate + pga + mux
 
     -- Write the configuration to the Config register (0x01)
     writeRegister(address, 0x01, config)
@@ -329,7 +341,7 @@ function M.readADC(channel, callback_func)
     -- Check if the first optional argument is a function
     -- If so, we have a callback function to run
     if type(callback_func) == "function" then
-
+    
         -- TODO: replace with tmr.create() dynamic timer in new firmware
         -- No need to worry if timer is taken
         -- tmr.create():alarm(delay, tmr.ALARM_SINGLE, function()
@@ -388,7 +400,8 @@ function M.setMode(setmode)
     -- Set mode to single shot (Bit 8) and begin a conversion if powered down (Bit 15)
     -- Alternatively, set mode to continuous measurents and don't trigger a conversion
     if setmode == "single" then
-        mode = bit.bor(0x0100, 0x8000)
+        --mode = bit.bor(0x0100, 0x8000)
+        mode = 0x0100 + 0x8000
     else
         mode = 0 -- bit.bor(0x0000, 0x0000)
     end
@@ -495,9 +508,11 @@ function M.setComparator(mode, low, high, latch, queue, alert)
     -- 2 conversions exceeding threshholds before ALERT pin is activated (0x0001)
     -- 4 conversion exceeding threshholds before ALERT pin is activated (0x0002)
     if queue == 2 then
-        comp = bit.bor(comp, 0x0001)
+        --comp = bit.bor(comp, 0x0001)
+        comp = comp + 0x0001
     elseif queue == 4 then
-        comp = bit.bor(comp, 0x0002)
+        --comp = bit.bor(comp, 0x0002)
+        comp = comp + 0x0002
     end
     
     -- Configure the alert pin (Bit 3)
@@ -505,7 +520,8 @@ function M.setComparator(mode, low, high, latch, queue, alert)
     -- Active low.  When ALERT is activated it will be low (default) (0x0000)
     -- Active high.  When ALERT is activated it will be high (0x0008)
     if alert == "high" then
-        comp = bit.bor(comp, 0x0008)
+        --comp = bit.bor(comp, 0x0008)
+        comp = comp + 0x0008
     end
 
     -- The low threshold argument is set
@@ -521,7 +537,8 @@ function M.setComparator(mode, low, high, latch, queue, alert)
 
         -- If low < 0, convert to a positive number & add the sign bit
         if low < 0 then
-            low = bit.bor(low * -1, 0x8000)
+            --low = bit.bor(low * -1, 0x8000)
+            low = (low * -1) + 0x8000
         end
 
         -- Write the Low threshold register (0x02)
@@ -543,7 +560,8 @@ function M.setComparator(mode, low, high, latch, queue, alert)
 
         -- If high < 0, convert to a positive number & add the sign bit
         if high < 0 then
-            high = bit.bor(high * -1, 0x8000)
+            --high = bit.bor(high * -1, 0x8000)
+            high = (high * -1) + 0x8000
         end
 
         -- Write the High threshold register (0x03)
@@ -556,9 +574,11 @@ function M.setComparator(mode, low, high, latch, queue, alert)
     -- Window mode: activates ALERT when over high threshold or under low threshhold (0x0010)
     -- Disable comparator: Bits 0-1 (0x0003)
     if mode == "window" then
-        comp = bit.bor(comp, 0x0010)
+        --comp = bit.bor(comp, 0x0010)
+        comp = comp + 0x0010
     elseif mode == "disable" then
-        comp = bit.bor(comp, 0x0003)
+        --comp = bit.bor(comp, 0x0003)
+        comp = comp + 0x0003
     end
     
     -- Return true if successful

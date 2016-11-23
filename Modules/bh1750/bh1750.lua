@@ -13,14 +13,17 @@ The following sources were of use for reference:
 ##### Public Function Reference #####
 * 
 
-
 ##### Required Firmware Modules #####
-bit, i2c
+i2c
 
+##### Max RAM usage: 6.7Kb #####
 
 ##### Version History #####
 - 11/10/2016 JGM - Version 0.1:
     - Initial version
+
+- 11/22/2016 JGM - Version 0.2: 
+    - Removed the requirement of the bit firmware module to save some RAM
 
 --]]
 
@@ -90,13 +93,13 @@ local function read()
 	-- Get the second byte (least significant, rightmost)
 	LSB = string.byte(bytes, 2)
 
-	-- Shift the first byte left 8 spaces
-	MSB = bit.lshift(MSB, 8)
+	-- Shift the first byte left 8 spaces and add the second byte to it
+	--MSB = bit.lshift(MSB, 8)
+	--intensity = MSB + LSB
+	intensity = MSB * 256 + LSB
 
-	intensity = MSB + LSB
-
-    print("MSB: " .. MSB .. " | " .. "LSB:" .. LSB .. " | " .. intensity)
-    print("MTReg: " .. MTReg .. " | " .. "Res: " .. resolution)
+    --print("MSB: " .. MSB * 256 .. " | " .. "LSB:" .. LSB .. " | " .. intensity)
+    --print("MTReg: " .. MTReg .. " | " .. "Res: " .. resolution)
 
 	-- Check to see if we've changed the sensitivity. 
 	if sensitivity ~= 1 then
