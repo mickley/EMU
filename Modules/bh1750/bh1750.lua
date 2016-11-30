@@ -14,7 +14,7 @@ The following sources were of use for reference:
 * 
 
 ##### Required Firmware Modules #####
-i2c
+i2c, tmr
 
 ##### Max RAM usage: 6.7Kb #####
 
@@ -24,6 +24,10 @@ i2c
 
 - 11/22/2016 JGM - Version 0.2: 
     - Removed the requirement of the bit firmware module to save some RAM
+
+- 11/28/2016 JGM - Version 0.3:
+    - Now uses dynamic timers for all timer-related stuff.  
+      This avoids conflicts, but requires a recent firmware
 
 --]]
 
@@ -280,11 +284,10 @@ function M.getLux(callback_func)
     -- If so, we have a callback function to run
     if type(callback_func) == "function" then
 
-        -- TODO: replace with tmr.create() dynamic timer in new firmware
-        -- No need to worry if timer is taken
-        -- tmr.create():alarm(delay, tmr.ALARM_SINGLE, function()
-        tmr.alarm(5, delay, tmr.ALARM_SINGLE, function()
+		-- Read the value after the specified delay is up
+        tmr.create():alarm(delay, tmr.ALARM_SINGLE, function()
 
+        	-- Get the lux value
         	lux = read()
 
         	-- Run the callback function with the lux as the argument
@@ -293,8 +296,10 @@ function M.getLux(callback_func)
 
     else
 
+    	-- Get the lux value
     	lux = read()
 
+    	-- Return the lux value, since there is no callback function
     	return(lux)
 
     end

@@ -212,4 +212,4 @@ gpio.mode(pin, gpio.OUTPUT)
 -- Set a timer.  This timer will keep running toggleLED every second until it's turned off
 -- toggleLED is a "callback function" here.  That means each time the timer is done running, 
 -- it will run toggleLED()
-tmr.alarm(0, duration, tmr.ALARM_AUTO, toggleLED)
+tmr.create():alarm(duration, tmr.ALARM_AUTO, toggleLED)

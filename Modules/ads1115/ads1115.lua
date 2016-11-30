@@ -63,6 +63,10 @@ gpio, i2c, tmr
 
 - 11/22/2016 JGM - Version 1.1: 
     - Removed the requirement of the bit firmware module to save some RAM
+
+- 11/28/2016 JGM - Version 1.2:
+    - Now uses dynamic timers for all timer-related stuff.  
+      This avoids conflicts, but requires a recent firmware
     
 --]]
 
@@ -342,10 +346,8 @@ function M.readADC(channel, callback_func)
     -- If so, we have a callback function to run
     if type(callback_func) == "function" then
     
-        -- TODO: replace with tmr.create() dynamic timer in new firmware
-        -- No need to worry if timer is taken
-        -- tmr.create():alarm(delay, tmr.ALARM_SINGLE, function()
-        tmr.alarm(6, delay, tmr.ALARM_SINGLE, function()
+        -- Read the value after the specified delay is up
+        tmr.create():alarm(delay, tmr.ALARM_SINGLE, function()
     
             -- Run readRegister(), but discard the value
             -- For some reason, if we don't do this, we get the LAST value

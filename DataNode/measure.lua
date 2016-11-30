@@ -17,6 +17,10 @@ bit, bme280, file, gpio, i2c, node, rtctime, sntp, tmr, u8g, wifi
 - 11/22/2016 JGM - Version 1.0:
         - Version for Tim to take to South AFrica
         
+- 11/28/2016 JGM - Version 1.1:
+    - Now uses dynamic timers for all timer-related stuff.  
+      This avoids conflicts, but requires a recent firmware
+
 --]]
 
 
@@ -95,44 +99,23 @@ end
 function timestamp(year, month, day, hour, minute, second, sync)
 
     -- Calculate leap days
-    leapdays = math.floor((year + 28) / 4 + 1)
+    local leapdays = math.floor((year + 28) / 4 + 1)
 
     -- Determine if this is a leap year, and account for whether the leap day has occurred
     if (year - 1972) % 4 == 0  and month <= 2 then leapdays = leapdays - 1 end
 
-    -- Calculate month seconds
-    if month == 1 then
-        month_sec = 0
-    elseif month == 2 then
-        month_sec = 2678400
-    elseif month == 3 then
-        month_sec = 5097600
-    elseif month == 4 then
-        month_sec = 7776000
-    elseif month == 5 then
-        month_sec = 10368000
-    elseif month == 6 then
-        month_sec = 13046400
-    elseif month == 7 then
-        month_sec = 15638400
-    elseif month == 8 then
-        month_sec = 18316800
-    elseif month == 9 then
-        month_sec = 20995200
-    elseif month == 10 then
-        month_sec = 23587200
-    elseif month == 11 then
-        month_sec = 26265600
-    elseif month == 12 then
-        month_sec = 28857600
-    end
+    -- Days already elapsed in previous month for each month of the year.  
+    local months = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334}
 
-    local seconds = (31536000 * (year + 30)) + month_sec + 
+    -- Calculate seconds since Unix Epoch = Unix Timestamp
+    local seconds = (365 * 86400 * (year + 30)) + (months[month] * 86400) + 
         ((day + leapdays - 1) * 86400) + 
         (hour * 3600) + (minute * 60) + second
 
+    -- Sync with the RTC time module if sync is true
     if sync then rtctime.set(seconds) end
-        
+
+    -- Return the timestamp
     return seconds
 end
 
@@ -297,8 +280,9 @@ function main()
     -- Log message
     log.log("Waiting for soil moisture sensor to equilibrate", 3)
 
+
     -- Set a timer to wait until the soil sensors equilibrate
-    tmr.alarm(2, soilDelay, tmr.ALARM_SINGLE, function()
+    tmr.create():alarm(soilDelay, tmr.ALARM_SINGLE, function()
 
         -- Log message
         log.log("Soil moisture sensor ready", 3)
@@ -370,12 +354,11 @@ function main()
             log.log("Data saved, going to sleep...", 3)
 
             -- Give some time for everything to complete and then go to sleep
-            tmr.alarm(3, 100, tmr.ALARM_SINGLE, function()
+            tmr.create():alarm(100, tmr.ALARM_SINGLE, function()
 
                 -- Sleep indefinitely until the DS3231 wakes it up
                 node.dsleep(0)
             end)
-            
     
         end)
             
