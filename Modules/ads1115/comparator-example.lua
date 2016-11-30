@@ -31,7 +31,7 @@ ads1115.setComparator("hysteresis", 10667, 16000)
 count = 0
 
 -- Start timer 0 and measure every 1 second
-tmr.alarm(0, 1000, tmr.ALARM_AUTO, function()
+tmr.create():alarm(1000, tmr.ALARM_AUTO, function(timer)
 
     -- Add one to count to keep track of how many times we've measured
     count = count + 1
@@ -57,7 +57,7 @@ tmr.alarm(0, 1000, tmr.ALARM_AUTO, function()
     if count == 30 then
 
         -- Stop the timer
-        tmr.unregister(0)
+        timer:unregister(0)
 
         -- Release the module to free up the memory
         ads1115 = nil
