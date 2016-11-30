@@ -25,6 +25,8 @@ Level 4: Log everything, including debug messages
 ##### Required Firmware Modules #####
 file, rtctime
 
+##### Max RAM usage: Kb #####
+
 ##### Version History #####
 - 9/1/2016 JGM - Version 0.1:
     - Initial version
@@ -33,6 +35,10 @@ file, rtctime
     - Tightened up the code a bit.  
     - Settings moved to init() function instead of using global variables
     - Removed log level module variables
+    
+- 11/28/2016 JGM - Version 0.3:
+    - Now starts the rtctime time at 1/1/1970 and starts counting 
+      if rtctime isn't set.
 
 --]]
 
@@ -59,6 +65,9 @@ local level, filename, toprint, tofile
 -- If not, it sets up some defaults
 function M.init(file, logLevel, logPrint, logFile)
 
+    -- Start the rtctime at 1/1/1970 if no time is set
+    if rtctime.get() == 0 then rtctime.set(0) end
+
     -- Use the file filename if it's set or default to node.log
     filename = type(file) == "string" and file or "node.log"
 
@@ -71,6 +80,8 @@ function M.init(file, logLevel, logPrint, logFile)
 
     -- Disable logging to file if specified, and default to enabled
     tofile = logFile and true or true
+
+    
 
 end
 
@@ -100,7 +111,7 @@ function M.log(message, lvl)
             string.format("%02d", tm.hour) .. ":" .. 
             string.format("%02d", tm.min) .. ":" .. 
             string.format("%02d", tm.sec)
-
+        
         -- Construct the message type
         if lvl == 1 then
             msgtype = "Error"
