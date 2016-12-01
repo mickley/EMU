@@ -248,8 +248,6 @@ function startup()
         -- run the main code to take a measurement
         main()
     end)
-    
-    print(node.heap())
 
 end
 
@@ -259,7 +257,6 @@ end
 
 -- The main() function measures all our sensors and writes to display & csv
 function main()
-    print(node.heap())
 
     -- Local variables that aren't needed outside of main()
     local status, pressure, temp, humidity, data
@@ -376,8 +373,6 @@ function main()
                 log.log("Error getting soil moisture from ADS1115.  Exiting!", 1)
                 return
             end
-
-            print(node.heap())
     
             -- Done with ads1115, so we can unload it 
             ads1115 = nil
@@ -424,12 +419,9 @@ function main()
                     -- Set the CSV data
                     data[1] = {soil, tempC, lux, kPa, timestr}
                 end
-    
              
                 -- Write the CSV
                 csv.writeCSV(data, "data.csv")
-
-                print(node.heap())
     
                 -- Unload the CSV module
                 csv = nil
