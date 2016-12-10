@@ -40,6 +40,11 @@ file, rtctime
     - Now starts the rtctime time at 1/1/1970 and starts counting 
       if rtctime isn't set.
 
+- 12/7/2016 JGM - Version 0.4:
+    - Added the timezone in init(), since the rtctime module should always use 
+      UTC time. When synced with sntp, this is what is used.  
+      
+
 --]]
 
 
@@ -54,7 +59,7 @@ local M = {}
 
 
 -- Local variables to store various settings
-local level, filename, toprint, tofile
+local level, filename, toprint, tofile, timezone
 
 
 -- ############### Public Functions ###############
@@ -63,13 +68,16 @@ local level, filename, toprint, tofile
 -- Initialize the logging module
 -- This checks to see if global variables are set
 -- If not, it sets up some defaults
-function M.init(file, logLevel, logPrint, logFile)
+function M.init(file, tz, logLevel, logPrint, logFile)
 
     -- Start the rtctime at 1/1/1970 if no time is set
     if rtctime.get() == 0 then rtctime.set(0) end
 
     -- Use the file filename if it's set or default to node.log
     filename = type(file) == "string" and file or "node.log"
+
+    -- Make sure timezone is set
+    timezone = tz ~= nil and type(tz) == "number" and tz or -5
 
     -- Use the logLevel if set and valid, or default to debug level (4)
     level = logLevel ~= nil and logLevel >= 0 and logLevel <= 4 and 
@@ -102,8 +110,8 @@ function M.log(message, lvl)
     -- Check to see if this message should be logged
     if lvl <= level then
     
-        -- Get the current time
-        tm = rtctime.epoch2cal(rtctime.get())
+        -- Get the current time, adjusting for timezone
+        tm = rtctime.epoch2cal(math.max(rtctime.get() + timezone * 3600, 0))
         
         -- Construct a timestamp
         stamp = tm.mon .. "/" .. string.format("%02d", tm.day) .. "/" .. 
