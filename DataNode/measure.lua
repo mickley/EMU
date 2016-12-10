@@ -5,7 +5,7 @@ It saves the data to CSV.
 Built specifically for field usage
 
 Module requirements:
-ads1115, csv, logging, bh1750, ds3231
+ads1115, bh1750, csv, ds3231, logging
 
 
 Firmware Module requirements:
@@ -55,6 +55,9 @@ disp_addr = 0x3c
 
 -- Make sure interval is set correctly, and set to 1 minute otherwise
 interval = interval ~= nil and interval or 1
+
+-- Make sure timezone is set and default to UTC-5
+timezone = timezone ~= nil and timezone or -5
 
 
 -- ########## Ancillary Functions ##########
@@ -176,9 +179,6 @@ function startup()
     
     -- Check if we got a valid time and log a warning if not.  
     if time == 0 then log.log("DS3231 module failed to get time", 2) end
-
-    -- Make sure timezone is set and default to UTC-5
-    timezone = timezone ~= nil and timezone or -5
     
     -- Creat a formatted date/time string
     timestr = month .. "/" .. digs(date, 2) .. "/" .. digs(year, 2) .. 
@@ -215,9 +215,9 @@ function startup()
         log.log("No BME/BMP280 sensor found. Exiting!", 1)
         return
     elseif bme == 2 then
-        log.log("BME280 sensor found.", 3)
+        log.log("BME280 sensor found", 3)
     else
-        log.log("BMP280 sensor found.", 3)
+        log.log("BMP280 sensor found", 3)
     end
 
 
