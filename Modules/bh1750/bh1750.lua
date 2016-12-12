@@ -56,8 +56,8 @@ local MTReg, modeCode
 -- We use this to write configuration settings
 local function write(address, opcode)
 
-    print(address)
-    print(opcode)
+    --print(address)
+    --print(opcode)
 
     -- Send an I²C start condition
     i2c.start(0)
@@ -130,12 +130,11 @@ end
 -- ############### Public Functions ###############
 
 
-function M.init(sda, scl, address, mode)
+function M.init(sda, scl, addr, mode)
 
 	-- Restrict address to 0x23 or 0x5C, and default to 0x5C if not specified
-	address = address ~= nil and (address == 0x23 or address == 0x5C) and address or 0x5C
+	address = addr ~= nil and (addr == 0x23 or addr == 0x5C) and addr or 0x5C
 
-    print(address)
     -- Initialize the I²C bus using the specified pins
     i2c.setup(0, sda, scl, i2c.SLOW)
 
