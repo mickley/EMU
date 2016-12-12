@@ -241,11 +241,13 @@ function M.setMeasurementTime(MT)
 
 	-- Shift the first 3 bytes of MT to the last 3
 	-- Then add the 01000 prefix by adding 0x40
-	local high = bit.rshift(MT, 5) + 0x40
+	local high = math.floor(MT / 32) + 0x40
+	--local high = bit.rshift(MT, 5) + 0x40
 
 	-- Get rid of the first 3 bytes in MT by ANDing 0x1F
 	-- Then add the 011 prefix by adding 0x60
-	local low = bit.band(MT, 0x1F) + 0x60
+	local low = (MT % 32) + 0x60
+	--local low = bit.band(MT, 0x1F) + 0x60
 
     -- Send an I²C start condition
     i2c.start(0)
