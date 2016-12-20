@@ -326,7 +326,7 @@ function M.getTime(format, sync)
     if second == nil or minute == nil or hour == nil or 
         date == nil or month == nil or year == nil or 
         second == 165 or minute == 165 or hour == 165 or 
-        date == 165 or month == 165 then
+        date == 165 or month == 165 or month == 0 then
 
         -- Return nil
         return nil
