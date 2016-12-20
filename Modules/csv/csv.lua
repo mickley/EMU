@@ -44,13 +44,13 @@ function M.writeCSV(tbl, filename, separator)
     -- Check if the first argument is a table
     if type(tbl) == "table" then
 
-        print(tbl.header)
-        print(type(tbl.header))
-        print(tbl.header == nil)
+        --print(tbl.header)
+        --print(type(tbl.header))
+        --print(tbl.header == nil)
         
         -- Check if there's a header, and whether it's a table itself
         if tbl.header == nil or type(tbl.header ~= "table") then 
-            print("Err: No table header set")
+            --print("Err: No table header set")
         end
 
     else
@@ -79,7 +79,7 @@ function M.writeCSV(tbl, filename, separator)
         -- Join the header
         header = table.concat(tbl.header, sep)
 
-        print(header)
+        --print(header)
         
         -- Create the file
         file.open(filename, "w")
@@ -95,7 +95,7 @@ function M.writeCSV(tbl, filename, separator)
         -- Get the data row and join it
         row = table.concat(line, sep)
 
-        print(row)
+        --print(row)
 
         -- Write the data row
         file.writeline(row)
