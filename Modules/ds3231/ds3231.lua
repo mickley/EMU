@@ -36,10 +36,17 @@ i2c
 - 12/11/2016 JGM - Version 0.1:
     - Initial version
 
-- 12/12/2016 JGM - Version 0.1:
+- 12/12/2016 JGM - Version 0.5:
     - New format() function that POSIX formats times and dates
     - Timestamp() is now part of format()
     - Small optimizations
+
+- 1/14/2017 JGM - Version 1.0:
+    - Got rid of the chip-version of 12-hr time format. 
+      Using the format() function means we can keep the chip in 
+      24-hr time and still return 12-hr time.  
+    - Also, this maintains code compatibility with the nodemcu 
+      ds3231 module
     
 --]]
 
@@ -255,20 +262,7 @@ end
 
 
 -- Set the current time on the RTC
-function M.setTime(second, minute, hour, ampm, day, date, month, year)
-
-    -- Check whether ampm mode has been specified
-    if ampm then
-
-      -- Make sure hour is between 1-12, converting if necessary
-      hour = (hour > 12 and hour % 12) or (hour == 0 and 12) or hour
-
-      -- Add the 12-hr indicator
-      hour = hour + 40
-
-      -- Add the PM indicator
-      if ampm == "pm" or ampm == "PM" then hour = hour + 20 end
-    end
+function M.setTime(second, minute, hour, day, date, month, year)
 
     -- Make sure year is on a 0-99 scale
     if year > 99 then year = year % 100 end
@@ -297,29 +291,6 @@ function M.getTime(format, sync)
     month = bcdToDec(string.byte(bytes, 6))
     year = bcdToDec(string.byte(bytes, 7)) + 2000 -- Convert to a 4-digit year
 
-    -- Check if AM/PM is enabled
-    if hour > 60 then
-        -- AM/PM is enabled and it's a PM time
-        -- Set ampm
-        ampm = "PM"
-
-        -- Subtract 60 to get the real hour
-        hour = hour - 60
-
-    elseif hour > 40 then
-        -- AM/PM is enabled and it's an AM time
-        -- Set ampm
-        ampm = "AM"
-
-        -- Subtract 40 to get the real hour
-        hour = hour - 40
-
-    else 
-
-        -- No AM/PM
-        ampm = nil
-
-    end
     
     -- Check if any values are nil or invalid
     -- Return nil in that case
@@ -336,19 +307,19 @@ function M.getTime(format, sync)
     if format == "raw" and sync then
 
         -- Run through the formatter to sync with RTC
-        M.format("%s", second, minute, hour, ampm, dayofweek, date, month, year, timezone, sync)
+        M.format("%s", second, minute, hour, dayofweek, date, month, year, timezone, sync)
 
     end
 
     -- If format is "raw" then just return the raw numbers
     if format == "raw" then
 
-        return second, minute, hour, ampm, dayofweek, date, month, year, timezone
+        return second, minute, hour, dayofweek, date, month, year, timezone
 
     else
     
         -- Run it through the POSIX formatter and return the output
-        return M.format(format, second, minute, hour, ampm, dayofweek, date, month, year, timezone, sync)
+        return M.format(format, second, minute, hour, dayofweek, date, month, year, timezone, sync)
 
     end
 
@@ -356,7 +327,7 @@ end
 
 
 -- Function to format date/time according to POSIX/strftime formatting codes
-function M.format(format, second, minute, hour, ampm, dayofweek, date, month, year, tz, sync)
+function M.format(format, second, minute, hour, dayofweek, date, month, year, tz, sync)
 
     local hour12, hour24, days, months, seconds, leapdays, formats
     
@@ -387,16 +358,12 @@ function M.format(format, second, minute, hour, ampm, dayofweek, date, month, ye
     months = {"January", "February", "March", "April", "May", "June", "July", 
               "August", "September", "October", "November", "December"}
 
-    -- Convert to both 12 and 24-hr time
-    if ampm then
-        hour12 = hour
-        hour24 = (ampm == "PM" and hour < 12 and hour + 12) or 
-                 (ampm == "AM" and hour == 12 and 0) or hour
-    else
-        hour24 = hour
-        hour12 = (hour > 12 and hour - 12) or (hour == 0 and 12) or hour 
-        ampm = hour < 12 and "AM" or "PM"
-    end
+    -- 24-hr time
+    hour24 = hour
+
+    -- Convert to 12-hour time
+    hour12 = (hour > 12 and hour - 12) or (hour == 0 and 12) or hour 
+    ampm = hour < 12 and "AM" or "PM"
 
 
     -- ##### Unix Timestamp ##### 
