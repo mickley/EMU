@@ -1,7 +1,9 @@
 
 # DS3231 Real Time Clock Module
 
-The [DS3231](https://www.maximintegrated.com/en/products/digital/real-time-clocks/DS3231.html) is an extremely accurate battery-backed Real Time Clock.  It provides a way to accurately get the current time, and provides alarms to schedule actions at specific times.  While the module is built for the DS3231, it should also work on the [DS3232](https://www.maximintegrated.com/en/products/digital/real-time-clocks/DS3232.html).  See this comparison of Maxim Real Time Clocks](https://www.maximintegrated.com/en/app-notes/index.mvp/id/5143) for more information  
+The [DS3231](https://www.maximintegrated.com/en/products/digital/real-time-clocks/DS3231.html) is an extremely accurate battery-backed Real Time Clock.  It provides a way to accurately get the current time, and provides alarms to schedule actions at specific times.  
+
+While the module is built for the DS3231, it should also work on the [DS3232](https://www.maximintegrated.com/en/products/digital/real-time-clocks/DS3232.html).  See this [comparison of Maxim Real Time Clocks](https://www.maximintegrated.com/en/app-notes/index.mvp/id/5143) for more information  
 
 
 ### Features
@@ -17,7 +19,7 @@ The [DS3231](https://www.maximintegrated.com/en/products/digital/real-time-clock
 
 Further information on the DS3231 can be found in the [Datasheet](https://datasheets.maximintegrated.com/en/ds/DS3231.pdf)
 
-This module uses a lot of RAM: 12-15kB.  Always release the module as soon as you're done with it to free up that memory.  See below for example:
+**Note:** This module uses a lot of RAM: 12-15kB.  Always release the module as soon as you're done with it to free up that memory.  See below for example:
 
 ```Lua
 -- Release the module to free up memory
