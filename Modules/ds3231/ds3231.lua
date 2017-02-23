@@ -6,12 +6,9 @@ These are temperature-compensated and highly accurate real time clocks.
 They have two alarms with interrupt support and can also output a square wave
 Very low current draw when on battery
 
-This would also work with the DS3234 with not much work
-
 See the Datasheets for more information:
 https://datasheets.maximintegrated.com/en/ds/DS3231.pdf
 https://datasheets.maximintegrated.com/en/ds/DS3232.pdf
-https://datasheets.maximintegrated.com/en/ds/DS3234.pdf
 
 Based on the nodemcu lua module for DS3231, but with many improvements:
 https://github.com/nodemcu/nodemcu-firmware/tree/master/lua_modules/ds3231
@@ -22,13 +19,13 @@ https://github.com/nodemcu/nodemcu-firmware/tree/master/lua_modules/ds3231
 * setTime()
 * getTime()
 * format()
-* reloadAlarms()
+* rearmAlarms()
 * changeAlarmState()
 * getTemp()
 
 
 ##### Required Firmware Modules #####
-i2c
+i2c, rtctime
 
 ##### Max RAM usage: 14.7Kb #####
 
@@ -47,7 +44,10 @@ i2c
       24-hr time and still return 12-hr time.  
     - Also, this maintains code compatibility with the nodemcu 
       ds3231 module
-    
+
+- 2/22/2017 JGM - Version 1.1:
+    - Fixed several small bugs
+
 --]]
 
 
@@ -249,14 +249,14 @@ function M.config(mode, SQRate, BBSQW, disableOnBatt, disable32KHz, BB32KHz, TCR
 
     -- Enable/Disable bit 3: Enable 32KHz output on the 32KHz pin
     status = disable32KHz and math.floor(status / 8) % 2 == 1 and status - 8 or status -- Disable
-    status = not disable32KHZ and math.floor(status / 8) % 2 == 0 and status + 8 or status -- Enable
+    status = not disable32KHz and math.floor(status / 8) % 2 == 0 and status + 8 or status -- Enable
 
     -- Write the status settings to the register
     writeRegister(0x0F, status)
 
-    print(cfg)
+    --print(cfg)
 
-    print(status)
+    --print(status)
 
 end
 
@@ -304,15 +304,15 @@ function M.getTime(format, sync)
     end
 
     -- Sync with the rtctime module if format = raw and sync is set
-    if format == "raw" and sync then
+    if sync == true and (format == "raw" or format == nil) then
 
         -- Run through the formatter to sync with RTC
         M.format("%s", second, minute, hour, dayofweek, date, month, year, timezone, sync)
 
     end
 
-    -- If format is "raw" then just return the raw numbers
-    if format == "raw" then
+    -- If format is undefined or "raw" then just return the raw numbers
+    if format == nil or format == "raw" then
 
         return second, minute, hour, dayofweek, date, month, year, timezone
 
@@ -384,7 +384,7 @@ function M.format(format, second, minute, hour, dayofweek, date, month, year, tz
         (hour24 * 3600) + (minute * 60) + second - tz * 3600
 
     -- Sync with the RTC time module if sync is true and the rtctime module is present
-    if sync and type(rtctime) == "romtable" then rtctime.set(seconds) end
+    if sync == true and type(rtctime) == "romtable" then rtctime.set(seconds) end
 
 
     -- ##### Macros ##### 
@@ -411,8 +411,8 @@ function M.format(format, second, minute, hour, dayofweek, date, month, year, tz
     formats = {}
     formats["%a"] = string.sub(days[dayofweek], 1, 3) -- Abbreviated weekday
     formats["%A"] = days[dayofweek] -- Full weekday
-    formats["%b"] = months[month] -- Abbreviated month name
-    formats["%B"] = string.sub(months[month], 1, 3) -- Full month name
+    formats["%b"] = string.sub(months[month], 1, 3) -- Abbreviated month name
+    formats["%B"] = months[month] -- Full month name
     formats["%c"] = date -- Day of the month without leading zeros
     formats["%d"] = string.format("%02d", date) -- Day of the month with leading zeros
     formats["%H"] = string.format("%02d", hour24) -- 24-hour with leading zeros
