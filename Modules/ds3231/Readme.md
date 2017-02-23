@@ -7,10 +7,10 @@ While the module is built for the DS3231, it should also work on the [DS3232](ht
 
 
 ### Features
-* Two alarms that when triggered can send either a low output or a square wave over the alarm pin
-* A 32khz square wave output
-* Battery-backed operation using a CR2032 battery that lasts years, and can run the alarm outputs
-* An 8-bit temperature sensor
+* Two alarms that when triggered can send either a LOW output or a square wave over the alarm pin (INT/SQW)
+* A 32khz square wave output on the 32kHz pin
+* Battery-backed timekeeping using a CR2032 battery that lasts years, and can run the alarm outputs and square waves
+* An 8-bit temperature sensor with 0.25 °C resolution and 3 °C accuracy
 * This module can return the date and time in a variety of formats
 
 ### Required Firmware Modules
@@ -55,9 +55,6 @@ Also optionally sets the timezone offset to use for time formatting.
 - `scl` The GPIO pin to use for SCL
 - (optional) `i2c_address` The I²C address to use. Default is 0x68, and must be between 0x68 and 0x6F
 - (optional) `timezone` The timezone offset to use.  Default is -5 (EST)
-
-
-(optional) i2c_addr 
 
 #### Returns
 `true` if a RTC is found, `false` if no RTC is present on the I²C pins and address specified.
@@ -137,8 +134,8 @@ Optionally, it can also sync the current time from the DS3231 to the [rtctime](h
 `ds3231.getTime([format], [sync])`
 
 #### Parameters
-- (optional) `format` The format to return the date/time in.  Default is `"raw"`.  See the format table below. 
-- (optional) `sync` Sync the time with the firmware rtctime module `true` or don't sync `false`.  Default is 
+- (optional) `format` The format to return the date/time in.  The default is `"raw"`.  See the format table below. With the exception of `"raw"` formats can be strung together in a string along with other characters, e.g. `"Current Time: %H:%M:%S"`.
+- (optional) `sync` Sync the time with the firmware rtctime module `true` or don't sync `false`.  The default is `false`.
 
 | format | Description                                                                                     |
 ---------|-------------------------------------------------------------------------------------------------|
@@ -170,7 +167,7 @@ Optionally, it can also sync the current time from the DS3231 to the [rtctime](h
 | %%     | The `%` character                                                                               |
 
 #### Returns
-`seconds, minutes, hours, day, date, month, year` if format is `"raw"` or `nil`.  Or a formatted string for POSIX formats
+`seconds, minutes, hours, day, date, month, year` if format is `"raw"` or `nil`.  Or a formatted string according to the format argument.
 
 #### Example
 ```Lua
@@ -210,7 +207,7 @@ This sets one of the two alarms on the DS3231.  Alarm #1 supports seconds precis
 
 When either of the alarms trigger, they either set the INT/SQW pin LOW (INT mode) or output a square wave of 1 Hz to 8.192 kHz (SQW mode).  This behavior can be configured using [ds3231.config()](#ds3231config).  
 
-Regardless of which trigger they use, the trigger continues to be active until ds3231.setAlarm() is called again or both alarms are re-armed using [ds3231.rearmAlarms()](#ds3231rearmalarms).
+Regardless of which trigger they use, the trigger continues to be active until [ds3231.setAlarm()](#ds3231setalarm) is called again or both alarms are re-armed using [ds3231.rearmAlarms()](#ds3231rearmalarms).
 
 #### Syntax
 `ds3231.setAlarm(alarm, alarmType, [second], [minute], [hour], [daydate])`
@@ -218,10 +215,10 @@ Regardless of which trigger they use, the trigger continues to be active until d
 #### Parameters
 - `alarm` The alarm to set: `1` or `2`
 - `alarmType` The type/frequency of alarm to set.  See the alarmType table below.  
-- `seconds` The seconds to trigger at (0-59).  Required for all alarmTypes but `ds3231.EVERYSECOND` or `ds3231.EVERYMINUTE`.  Ignored for alarm #2.  
-- `minutes` The minutes to trigger at (0-59).  Required for all alarmTypes but `ds3231.EVERYSECOND`, `ds3231.EVERYMINUTE`, and `ds3231.SECOND`
-- `hours` The hours to trigger at (0-23).  Required for the alarmTypes `ds3231.HOUR`, `ds3231.DAY`, `ds3231.DATE`
-- `weekday/date` For the `ds3231.DAY` alarmType, this is the day of the week (1 = Sunday, 7 = Saturday).  For the `ds3231.DATE` alarmType, this is the day of the month (1-31). Only required for alarmTypes `ds3231.DAY` and `ds3231.DATE`
+- (optional) `seconds` The seconds to trigger at (0-59).  Required for all alarmTypes but `ds3231.EVERYSECOND` or `ds3231.EVERYMINUTE`.  Ignored for alarm #2.  
+- (optional) `minutes` The minutes to trigger at (0-59).  Required for all alarmTypes but `ds3231.EVERYSECOND`, `ds3231.EVERYMINUTE`, and `ds3231.SECOND`
+- (optional) `hours` The hours to trigger at (0-23).  Required for the alarmTypes `ds3231.HOUR`, `ds3231.DAY`, `ds3231.DATE`
+- (optional) `weekday/date` For the `ds3231.DAY` alarmType, this is the day of the week (1 = Sunday, 7 = Saturday).  For the `ds3231.DATE` alarmType, this is the day of the month (1-31). Only required for alarmTypes `ds3231.DAY` and `ds3231.DATE`
 
 | alarmType          | Description                                                                                |
 |--------------------|--------------------------------------------------------------------------------------------|
@@ -243,7 +240,7 @@ Regardless of which trigger they use, the trigger continues to be active until d
 ds3231.setAlarm(1, ds3231.MINUTE, 0, 30)
 
 -- Set alarm 2 to trigger on Mondays at 8 AM
-ds3231.setAlarm(2, ds3231.DAY, 0, 0, 8, )
+ds3231.setAlarm(2, ds3231.DAY, 0, 0, 8, 2)
 ```
 
 
@@ -273,7 +270,7 @@ ds3231.changeAlarmState(2, true)
 
 ## ds3231.rearmAlarms()
 
-This resets both alarms, turning them off if they have triggered.  The alarms need to be enabled to re-trigger.
+This resets both alarms, turning off the alarm output if they have triggered.  The alarms need to remain enabled to re-trigger.
 
 #### Syntax
 `ds3231.rearmAlarms()`
@@ -299,8 +296,8 @@ Takes raw date/time values and formats them, returning a formatted date/time str
 - `date` The day of the month (1-31
 - `month` The month (1-12)
 - `year` The year in 4-digit format
-- (optional) `timezone` The timezone offset. Defaults to 0
-- (optional) `sync` Sync the time with the firmware rtctime module `true` or don't sync `false`.  
+- (optional) `timezone` The timezone offset. The default is `0`
+- (optional) `sync` Sync the time with the firmware rtctime module `true` or don't sync `false`.  The default is `false`.
 
 #### Returns
 `nil`
@@ -310,7 +307,7 @@ Takes raw date/time values and formats them, returning a formatted date/time str
 -- Only get the minutes, not saving the other values
 seconds, minutes, hours = ds3231.getTime("raw")
 
-Add 15 to the minutes
+-- Add 15 to the minutes
 minutes = minutes + 15
 
 -- Get the formatted time 15 minutes from now.  Doesn't matter what the last 4 values are
