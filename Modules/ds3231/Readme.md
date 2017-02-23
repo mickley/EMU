@@ -31,12 +31,12 @@ package.loaded["ds3231"] = nil
 | Function                                             | Reference                                                |
 |------------------------------------------------------|----------------------------------------------------------|
 | [ds3231.init()](#ds3231init)                         | Initialize the DS3231 module                             |
-| [ds3231.config()](#ds3231readadc)                    | Configure options, mostly for the outputs                |
+| [ds3231.config()](#ds3231config)                     | Configure options, mostly for the outputs                |
 | [ds3231.setTime()](#ds3231settime)                   | Set the current time                                     |
 | [ds3231.getTime()](#ds3231gettime)                   | Get the current time                                     |
 | [ds3231.setAlarm()](#ds3231setalarm)                 | Set one of the two alarms                                |
 | [ds3231.changeAlarmState()](#ds3231changealarmstate) | Enable or disable an alarm                               |
-| [ds3231.reloadAlarms()](#ds3231reloadalarms)         | Re-arm both alarms                                       |
+| [ds3231.rearmAlarms()](#ds3231rearmalarms)           | Re-arm both alarms                                       |
 | [ds3231.format()](#ds3231format)                     | Convert a numeric time into a formatted timestamp string |
 | [ds3231.getTemp()](#ds3231gettemp)                   | Gets the current temperature                             |
 
