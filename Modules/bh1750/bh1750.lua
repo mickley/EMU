@@ -29,6 +29,11 @@ i2c, tmr
     - Now uses dynamic timers for all timer-related stuff.  
       This avoids conflicts, but requires a recent firmware
 
+- 2/22/2017 JGM - Version 0.4:
+    - Added a check to the init function to see if the sensor was found
+    - Added a local variable for i2c_id in case there are multiple i2c buses 
+      in the future
+
 --]]
 
 
@@ -46,7 +51,7 @@ local M = {}
 local address, cursor
 local sensitivity, resolution, delay
 local MTReg, modeCode
-
+local i2c_id = 0
 
 
 -- ############### Private Functions ###############
@@ -60,16 +65,16 @@ local function write(address, opcode)
     --print(opcode)
 
     -- Send an I²C start condition
-    i2c.start(0)
+    i2c.start(i2c_id)
 
     -- Setup I²C address in write mode
-    i2c.address(0, 0x23, i2c.TRANSMITTER)
+    i2c.address(i2c_id, 0x23, i2c.TRANSMITTER)
 
     -- Write the Opcode
-    i2c.write(0, opcode)
+    i2c.write(i2c_id, opcode)
 
     -- Send an I²C stop condition
-    i2c.stop(0)
+    i2c.stop(i2c_id)
 
 end
 
@@ -80,16 +85,16 @@ local function read()
 
   
     -- Send an I²C start condition
-    i2c.start(0)
+    i2c.start(i2c_id)
 
     -- Setup I²C address in write mode
-    i2c.address(0, 0x23, i2c.RECEIVER)
+    i2c.address(i2c_id, 0x23, i2c.RECEIVER)
 
 	-- Receive two bytes from the sensor
-	bytes = i2c.read(0, 2)
+	bytes = i2c.read(i2c_id, 2)
 
 	-- Send an I²C stop condition
-	i2c.stop(0)
+	i2c.stop(i2c_id)
 
 	-- Get first byte (most significant, leftmost)
 	MSB = string.byte(bytes, 1)
@@ -136,7 +141,7 @@ function M.init(sda, scl, addr, mode)
 	address = addr ~= nil and (addr == 0x23 or addr == 0x5C) and addr or 0x5C
 
     -- Initialize the I²C bus using the specified pins
-    i2c.setup(0, sda, scl, i2c.SLOW)
+    i2c.setup(i2c_id, sda, scl, i2c.SLOW)
 
 	-- Turn on the sensor
 	M.on()
@@ -149,6 +154,19 @@ function M.init(sda, scl, addr, mode)
     sensitivity = 1.00
     resolution = 1
     delay = 185
+
+    -- Send an I²C start condition
+    -- Test to see if the I²C address works
+    i2c.start(i2c_id)
+
+    -- Setup the I²C address in write mode and return any acknowledgment
+    local test = i2c.address(i2c_id, address, i2c.TRANSMITTER)
+
+    -- Send an I²C start condition
+    i2c.stop(i2c_id)
+
+    -- If we got an acknowledgement (test = true) then we've found the device
+    return test
 
 end
 
@@ -250,19 +268,19 @@ function M.setMeasurementTime(MT)
 	--local low = bit.band(MT, 0x1F) + 0x60
 
     -- Send an I²C start condition
-    i2c.start(0)
+    i2c.start(i2c_id)
 
     -- Setup I²C address in write mode
-    i2c.address(0, 0x23, i2c.TRANSMITTER)
+    i2c.address(i2c_id, 0x23, i2c.TRANSMITTER)
 
     -- Write the high byte
-    i2c.write(0, high)
+    i2c.write(i2c_id, high)
 
     -- Write the high byte
-    i2c.write(0, low)
+    i2c.write(i2c_id, low)
 
     -- Send an I²C stop condition
-    i2c.stop(0)
+    i2c.stop(i2c_id)
 
 end
 
