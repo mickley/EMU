@@ -67,7 +67,11 @@ gpio, i2c, tmr
 - 11/28/2016 JGM - Version 1.2:
     - Now uses dynamic timers for all timer-related stuff.  
       This avoids conflicts, but requires a recent firmware
-    
+
+- 2/22/2017 JGM - Version 1.3:
+    - Added a local variable for i2c_id in case there are multiple i2c buses 
+      in the future
+
 --]]
 
 
@@ -83,7 +87,7 @@ local M = {}
 
 -- Local variables to store various settings
 local address, mode, comp, rate, pga, delay, resolution
-
+local i2c_id = 0
 
 -- ############### ADS1115 Register Addresses ###############
 
@@ -166,13 +170,13 @@ local address, mode, comp, rate, pga, delay, resolution
 local function writeRegister(address, register, value)
 
     -- Send an I²C start condition
-    i2c.start(0)
+    i2c.start(i2c_id)
 
     -- Setup I²C address in write mode
-    i2c.address(0, address, i2c.TRANSMITTER)
+    i2c.address(i2c_id, address, i2c.TRANSMITTER)
 
     -- Write the register address we'd like to write to
-    i2c.write(0, register)
+    i2c.write(i2c_id, register)
 
     -- Extract the two bytes from the value to write
     -- Have to remove one half and then the other half of the 16 bits
@@ -183,13 +187,13 @@ local function writeRegister(address, register, value)
     local LSB = value % 256
     
     -- Write the most significant byte (leftmost 8 bits)
-    i2c.write(0, MSB)
+    i2c.write(i2c_id, MSB)
 
     -- Write the least significant byte (rightmost 8 bits)
-    i2c.write(0, LSB)
+    i2c.write(i2c_id, LSB)
 
     -- Send an I²C stop condition
-    i2c.stop(0)
+    i2c.stop(i2c_id)
 
 end
 
@@ -199,28 +203,28 @@ end
 local function readRegister(address, register)
 
     -- Send an I²C start condition
-    i2c.start(0)
+    i2c.start(i2c_id)
 
     -- Setup I²C address in write mode
-    i2c.address(0, address, i2c.TRANSMITTER)
+    i2c.address(i2c_id, address, i2c.TRANSMITTER)
 
     -- Write the address of the register we'd like to read
-    i2c.write(0, register)
+    i2c.write(i2c_id, register)
 
     -- Send an I²C stop condition
-    i2c.stop(0)
+    i2c.stop(i2c_id)
 
     -- Send an I²C start condition again
-    i2c.start(0)
+    i2c.start(i2c_id)
 
     -- Setup I²C address in read mode
-    i2c.address(0, address, i2c.RECEIVER)
+    i2c.address(i2c_id, address, i2c.RECEIVER)
 
     -- Receive two bytes from the sensor
-    local bytes = i2c.read(0, 2)
+    local bytes = i2c.read(i2c_id, 2)
 
     -- Send an I²C stop condition
-    i2c.stop(0)
+    i2c.stop(i2c_id)
 
     -- Get first byte (most significant, leftmost)
     local MSB = string.byte(bytes, 1)
@@ -282,16 +286,16 @@ function M.init(sda, scl, i2c_addr)
 
     -- Test to see if the I²C address works
     -- Initialize the I²C bus using the specified pins
-    i2c.setup(0, sda, scl, i2c.SLOW)
+    i2c.setup(i2c_id, sda, scl, i2c.SLOW)
 
     -- Send an I²C start condition
-    i2c.start(0)
+    i2c.start(i2c_id)
 
     -- Setup the I²C address in write mode and return any acknowledgment
-    local test = i2c.address(0, address, i2c.TRANSMITTER)
+    local test = i2c.address(i2c_id, address, i2c.TRANSMITTER)
 
     -- Send an I²C start condition
-    i2c.stop(0)
+    i2c.stop(i2c_id)
 
     -- If we got an acknowledgement (test = true) then we've found the device
     return test
