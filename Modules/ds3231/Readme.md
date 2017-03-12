@@ -1,5 +1,5 @@
 
-# DS3231 Real Time Clock (RTC) Module
+# DS3231/DS3232 Real Time Clock (RTC) Module
 
 The [DS3231](https://www.maximintegrated.com/en/products/digital/real-time-clocks/DS3231.html) is an extremely accurate battery-backed Real Time Clock (RTC).  It provides a way to accurately get the current time, and provides alarms to schedule actions at specific times.  
 
