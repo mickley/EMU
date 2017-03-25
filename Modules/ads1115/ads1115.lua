@@ -72,6 +72,9 @@ gpio, i2c, tmr
     - Added a local variable for i2c_id in case there are multiple i2c buses 
       in the future
 
+- 3/9/2017 JGM - Version 1.4:
+    - Added module version printout
+
 --]]
 
 
@@ -88,6 +91,7 @@ local M = {}
 -- Local variables to store various settings
 local address, mode, comp, rate, pga, delay, resolution
 local i2c_id = 0
+local version = 1.4
 
 -- ############### ADS1115 Register Addresses ###############
 
@@ -592,6 +596,8 @@ function M.setComparator(mode, low, high, latch, queue, alert)
 
 end
 
+-- Print out module version information on load
+print("Loaded ADS1115 v" .. version)
 
 -- Return the module table
 return M

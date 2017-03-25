@@ -14,6 +14,9 @@ file
 ##### Version History #####
 - 9/1/2016 JGM - Version 0.1:
     - Initial version
+
+- 3/9/2017 JGM - Version 0.2:
+    - Added module version printout
     
 --]]
 
@@ -30,6 +33,7 @@ local M = {}
 -- ############### Local variables ###############
 
 local header
+local version = 0.2
 
 -- ############### Private Functions ###############
 
@@ -106,4 +110,8 @@ function M.writeCSV(tbl, filename, separator)
     
 end
 
+-- Print out module version information on load
+print("Loaded CSV v" .. version)
+
+-- Return the module table
 return M

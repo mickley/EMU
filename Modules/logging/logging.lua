@@ -43,7 +43,9 @@ file, rtctime
 - 12/7/2016 JGM - Version 0.4:
     - Added the timezone in init(), since the rtctime module should always use 
       UTC time. When synced with sntp, this is what is used.  
-      
+
+- 3/9/2017 JGM - Version 0.2:
+    - Added module version printout
 
 --]]
 
@@ -60,7 +62,7 @@ local M = {}
 
 -- Local variables to store various settings
 local level, filename, toprint, tofile, timezone
-
+local version = 0.5
 
 -- ############### Public Functions ###############
 
@@ -177,6 +179,8 @@ function M.log(message, lvl)
     
 end
 
+-- Print out module version information on load
+print("Loaded Logging v" .. version)
 
 -- Return the module table
 return M

@@ -48,6 +48,9 @@ i2c, rtctime
 - 2/22/2017 JGM - Version 1.1:
     - Fixed several small bugs
 
+- 3/9/2017 JGM - Version 1.2:
+    - Added module version printout
+
 --]]
 
 
@@ -64,6 +67,7 @@ local M = {}
 -- Local variables to store various settings
 local address, timezone
 local i2c_id = 0
+local version = 1.2
 
 
 -- ############### Alarm Type Constants ###############
@@ -598,6 +602,8 @@ end
 
 --end
 
+-- Print out module version information on load
+print("Loaded DS3231 v" .. version)
 
 -- Return the module table
 return M

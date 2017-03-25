@@ -34,6 +34,9 @@ i2c, tmr
     - Added a local variable for i2c_id in case there are multiple i2c buses 
       in the future
 
+- 3/9/2017 JGM - Version 0.5:
+    - Added module version printout
+
 --]]
 
 
@@ -52,6 +55,7 @@ local address, cursor
 local sensitivity, resolution, delay
 local MTReg, modeCode
 local i2c_id = 0
+local version = 0.5
 
 
 -- ############### Private Functions ###############
@@ -325,6 +329,8 @@ function M.getLux(callback_func)
 
 end
 
+-- Print out module version information on load
+print("Loaded BH1750 v" .. version)
 
 -- Return the module table
 return M
