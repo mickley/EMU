@@ -22,9 +22,12 @@ Replace the EDITME sections with your own information
 - 11/16/2016 JGM - Version 1.4: 
     - Added hostname and removed thingspeak API key
 
-- 12/9/2016 JGM - Version 1.5:
+- 12/9/2016  JGM - Version 1.5:
     - Added thingspeak API key again, and an option to specify whether to sync 
       time over SNTP when connected to wifi
+
+- 4/3/2017   JGM - Version 1.6
+    - Reconfigured for the EMUse project
 
 --]]
 
@@ -36,14 +39,14 @@ Replace the EDITME sections with your own information
 -- ##### Startup File #####
 
 -- Set startup file to execute by default
-startup = "startupfile.lua"
+startup = "measure_field.lua"
 
 
 -- ##### Wifi Options #####
 
 -- WIFI SSID (network name)
-wifi_ssid = "EDITME"
-wifi_pass = "EDITME"
+wifi_ssid = "EMUse"
+wifi_pass = nil
 
 -- Is Wifi required for startup routine?
 -- If so, then init.lua will try to wait until connected before running startup
@@ -56,13 +59,13 @@ wifi_router = nil
 
 -- Set the hostname of the ESP
 -- If running a webserver, you can then go to http://hostname
-wifi_hostname = nil
+wifi_hostname = "Natalie"
 
 
 -- ##### Time Options #####
 
 -- Sync the time via sntp when connected to wifi
-wifi_sync_time = true
+wifi_sync_time = false
 
 -- Time sync ntp server
 -- Lots of options here, find the best one
@@ -80,11 +83,12 @@ interval = 15
 
 -- ##### Miscellany #####
 
+
 -- adc.readvdd33() is low by about 0.25V for D1 Mini
 volt_adj = 0.25
 
 -- Add the thingspeak API key to use
-thingspeak_API = "EDITME"
+thingspeak_API = "ZXNCFVFTJ3ZN2174"
 
 
 -- ##### Configuration Finished #####
