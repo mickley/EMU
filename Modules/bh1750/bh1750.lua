@@ -37,6 +37,15 @@ i2c, tmr
 - 3/9/2017 JGM - Version 0.5:
     - Added module version printout
 
+- 5/8/2017 JGM - Version 1.0: 
+    - Fixed a major bug in the code to change measurement time
+    - The delay is now a function of the measurement time 
+      (as it should have been)
+    - Now returns the validity of the measurement as well.  
+      This provides an easy way to check if the measurement is 
+      out of range
+    - Cleaned up code a bit.
+
 --]]
 
 
@@ -51,11 +60,9 @@ local M = {}
 
 
 -- Local variables
-local address, cursor
-local sensitivity, resolution, delay
-local MTReg, modeCode
+local address, MTReg, resolution, delay, modeCode
 local i2c_id = 0
-local version = 0.5
+local version = 1.0
 
 
 -- ############### Private Functions ###############
@@ -63,16 +70,13 @@ local version = 0.5
 
 -- I²C function to write an Opcode to the device
 -- We use this to write configuration settings
-local function write(address, opcode)
-
-    --print(address)
-    --print(opcode)
+local function write(opcode)
 
     -- Send an I²C start condition
     i2c.start(i2c_id)
 
     -- Setup I²C address in write mode
-    i2c.address(i2c_id, 0x23, i2c.TRANSMITTER)
+    i2c.address(i2c_id, address, i2c.TRANSMITTER)
 
     -- Write the Opcode
     i2c.write(i2c_id, opcode)
@@ -82,12 +86,12 @@ local function write(address, opcode)
 
 end
 
-
+--  I²C function to read two bytes from the sensor
+-- 
 local function read()
 
-	local lux, bytes, MSB, LSB, intensity
+	local bytes, raw, valid, lux
 
-  
     -- Send an I²C start condition
     i2c.start(i2c_id)
 
@@ -100,38 +104,20 @@ local function read()
 	-- Send an I²C stop condition
 	i2c.stop(i2c_id)
 
-	-- Get first byte (most significant, leftmost)
-	MSB = string.byte(bytes, 1)
+    -- Get the raw sensor value from the two bytes
+	raw = string.byte(bytes, 1) * 256 + string.byte(bytes, 2)
 
-	-- Get the second byte (least significant, rightmost)
-	LSB = string.byte(bytes, 2)
+    -- Check if the measurement is valid
+    if raw < 65535 then valid = true else valid = false end
 
-	-- Shift the first byte left 8 spaces and add the second byte to it
-	--MSB = bit.lshift(MSB, 8)
-	--intensity = MSB + LSB
-	intensity = MSB * 256 + LSB
-
-    --print("MSB: " .. MSB * 256 .. " | " .. "LSB:" .. LSB .. " | " .. intensity)
-    --print("MTReg: " .. MTReg .. " | " .. "Res: " .. resolution)
-
-	-- Check to see if we've changed the sensitivity. 
-	if sensitivity ~= 1 then
-
-		-- According to datasheet, divide by 1.2 & multiply by Resolution
-		-- Sensitivity has been changed, so don't re-scale
-		lux = intensity / 1.2 * resolution
-
-	else
-
-		-- According to datasheet, divide by 1.2 & multiply by Resolution
-		-- Rescale to account for Measurement Time change
-		lux = intensity / 1.2 * resolution * 69.0 / MTReg
-
-	end
+	-- According to datasheet, divide by 1.2 & multiply by resolution
+	-- Rescale to account for Measurement Time change
+	lux = raw / 1.2 * resolution * 69.0 / MTReg
 
 	-- TODO: Check for errors
 
-	return lux
+    -- Return the lux measurement and its validity
+	return lux, valid
 
 end
 
@@ -139,25 +125,13 @@ end
 -- ############### Public Functions ###############
 
 
-function M.init(sda, scl, addr, mode)
+function M.init(sda, scl, addr, sensor_mode)
 
 	-- Restrict address to 0x23 or 0x5C, and default to 0x5C if not specified
-	address = addr ~= nil and (addr == 0x23 or addr == 0x5C) and addr or 0x5C
+	address = addr ~= nil and (addr == 0x23 or addr == 0x5C) and addr or 0x23
 
     -- Initialize the I²C bus using the specified pins
     i2c.setup(i2c_id, sda, scl, i2c.SLOW)
-
-	-- Turn on the sensor
-	M.on()
-
-	-- Set the mode, defaults to Continuous_H if not set
-	M.setMode(mode)
-
-    -- Set defaults for MTReg and Sensitivity
-    MTReg = 69
-    sensitivity = 1.00
-    resolution = 1
-    delay = 185
 
     -- Send an I²C start condition
     -- Test to see if the I²C address works
@@ -169,6 +143,22 @@ function M.init(sda, scl, addr, mode)
     -- Send an I²C start condition
     i2c.stop(i2c_id)
 
+    -- Set defaults for MTReg and Sensitivity
+    MTReg = 69
+    resolution = 1
+    delay = 185
+
+    -- If sensor was found, initialize it
+    if test then 
+
+        -- Turn on the sensor
+        M.on()
+    
+        -- Set the mode, defaults to Continuous_H if not set
+        M.setMode(mode)
+        
+    end
+    
     -- If we got an acknowledgement (test = true) then we've found the device
     return test
 
@@ -178,7 +168,7 @@ end
 -- Turn sensor on
 function M.on()
 
-	write(address, 0x01)
+	write(0x01)
 
 end
 
@@ -187,7 +177,7 @@ end
 -- Reset operator won't work in this mode
 function M.off()
 
-	write(address, 0x00)
+	write(0x00)
 
 end
 
@@ -195,21 +185,22 @@ end
 -- Reset the data register value
 function M.reset()
 
-	write(address, 0x07)
+	write(0x07)
 
 end
 
 
--- Set the sensor mode: continuous or one-time, and 3 sensitivities
+-- Sets the sensor mode: 
+-- Continuous or one-time and 3 sensitivities: 6 modes total
 function M.setMode(mode)
 
+    -- Set the delay: default for H and H2 modes
+    delay = math.ceil(185 * MTReg / 69)
 
-	if mode == "Continuous_H" then
+    -- Set the resolution: default for H and L modes
+    resolution = 1
 
-		-- 1 lx resolution (16 bit), 120ms sampling time
-		modeCode = 0x10
-
-	elseif mode == "Continuous_H2" then
+    if mode == "Continuous_H2" then
 
 		-- 0.5 lx resolution (18 bit), 120ms sampling time
 		modeCode = 0x11
@@ -219,7 +210,7 @@ function M.setMode(mode)
 
 		-- 4 lx resolution (15 bit), 16ms sampling time
 		modeCode = 0x13
-		delay = 25
+        delay = math.ceil(25 * MTReg / 69)
 
 	elseif mode == "OneTime_H" then
 
@@ -233,18 +224,18 @@ function M.setMode(mode)
 	elseif mode == "OneTime_L" then
 
 		modeCode = 0x23
-		delay = 25
+		delay = math.ceil(25 * MTReg / 69)
 
 	else
 
-		-- Default to Continuous_H
-		modeCode = 0x10
+        -- Default to Continuous_H
+        -- 1 lx resolution (16 bit), 120ms sampling time
+        modeCode = 0x10
 
 	end
 
 	-- Write the opcode
-	write(address, modeCode)
-
+	write(modeCode)
 
 end
 
@@ -256,35 +247,27 @@ end
 function M.setMeasurementTime(MT)
 
 	-- Constrain measurment time to [31,254]
-	MT = math.min(math.max(MT, 31), 254)
+	MT = math.min(math.max(MT, 20), 300)
 
 	-- Set the MTReg class variable so we can account for it while measuring
 	MTReg = MT
 
+    -- Set the new delay time
+    delay = math.ceil(((modeCode == 0x13 or modeCode == 0x23) and 25 or 185) * MTReg / 69)
+
 	-- Shift the first 3 bytes of MT to the last 3
 	-- Then add the 01000 prefix by adding 0x40
 	local high = math.floor(MT / 32) + 0x40
-	--local high = bit.rshift(MT, 5) + 0x40
 
 	-- Get rid of the first 3 bytes in MT by ANDing 0x1F
 	-- Then add the 011 prefix by adding 0x60
 	local low = (MT % 32) + 0x60
-	--local low = bit.band(MT, 0x1F) + 0x60
-
-    -- Send an I²C start condition
-    i2c.start(i2c_id)
-
-    -- Setup I²C address in write mode
-    i2c.address(i2c_id, 0x23, i2c.TRANSMITTER)
 
     -- Write the high byte
-    i2c.write(i2c_id, high)
+    write(high)
 
-    -- Write the high byte
-    i2c.write(i2c_id, low)
-
-    -- Send an I²C stop condition
-    i2c.stop(i2c_id)
+    -- Write the low byte
+    write(low)
 
 end
 
@@ -298,10 +281,10 @@ end
 
 function M.getLux(callback_func)
 
-	local lux
+	local lux, valid
 
 	-- Set the mode/initiate a conversion
-	write(address, modeCode)
+	write(modeCode)
 
     -- Check if the first optional argument is a function
     -- If so, we have a callback function to run
@@ -310,24 +293,25 @@ function M.getLux(callback_func)
 		-- Read the value after the specified delay is up
         tmr.create():alarm(delay, tmr.ALARM_SINGLE, function()
 
-        	-- Get the lux value
-        	lux = read()
+        	-- Get the lux value and its validity
+        	lux, valid = read()
 
-        	-- Run the callback function with the lux as the argument
-            callback_func(lux)
+        	-- Run the callback function with the lux & validity as arguments
+            callback_func(math.floor(lux * 100 + 0.5) / 100, valid)
     	end)
 
     else
 
-    	-- Get the lux value
-    	lux = read()
+    	-- Get the lux value and its validity
+    	lux, valid = read()
 
-    	-- Return the lux value, since there is no callback function
-    	return(lux)
+    	-- Return the lux value and validity, since there is no callback function
+    	return math.floor(lux * 100 + 0.5) / 100, valid
 
     end
 
 end
+
 
 -- Print out module version information on load
 print("Loaded BH1750 v" .. version)
