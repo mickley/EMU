@@ -17,6 +17,11 @@ file
 
 - 3/9/2017 JGM - Version 0.2:
     - Added module version printout
+
+- 5/8/2017 JGM - Version 0.3: 
+    - Now uses object-oriented file functions
+      Also checks to see if files were opened correctly, 
+      preventing errors
     
 --]]
 
@@ -33,7 +38,7 @@ local M = {}
 -- ############### Local variables ###############
 
 local header
-local version = 0.2
+local version = 0.3
 
 -- ############### Private Functions ###############
 
@@ -76,7 +81,7 @@ function M.writeCSV(tbl, filename, separator)
     if file.exists(filename) then
 
         -- Open the file in append mode
-        file.open(filename, "a+")
+        fhandle = file.open(filename, "a+")
         
     else
 
@@ -86,27 +91,53 @@ function M.writeCSV(tbl, filename, separator)
         --print(header)
         
         -- Create the file
-        file.open(filename, "w")
+        fhandle = file.open(filename, "w")
 
-        -- Write the header row
-        file.writeline(header)
+        -- Check to see if the file opened successfully
+        if fhandle then
+
+            -- Write the header row
+            fhandle:writeline(header)
+        else
+        
+            -- Print error message
+            print("Couldn't create " .. filename)
+    
+            -- Writing to CSV was unsuccessful
+            return false
+        end
         
     end
+
+    -- Check to see if the file opened successfully
+    if fhandle then
         
-    -- Write the data rows
-    for _, line in ipairs(tbl) do
+        -- Write the data rows
+        for _, line in ipairs(tbl) do
+    
+            -- Get the data row and join it
+            row = table.concat(line, sep)
+    
+            --print(row)
+    
+            -- Write the data row
+            fhandle:writeline(row)
+        end
+    
+        -- Close the file
+        fhandle:close()
+        
+    else
 
-        -- Get the data row and join it
-        row = table.concat(line, sep)
+        -- Print error message
+        print("Couldn't open " .. filename)
 
-        --print(row)
-
-        -- Write the data row
-        file.writeline(row)
+        -- Writing to CSV was unsuccessful
+        return false
     end
 
-    -- Close the file
-    file.close()
+    -- Writing to CSV was successful
+    return true
     
 end
 

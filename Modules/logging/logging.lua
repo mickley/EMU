@@ -44,8 +44,14 @@ file, rtctime
     - Added the timezone in init(), since the rtctime module should always use 
       UTC time. When synced with sntp, this is what is used.  
 
-- 3/9/2017 JGM - Version 0.2:
+- 3/9/2017 JGM - Version 0.5:
     - Added module version printout
+
+- 5/8/2017 JGM - Version 0.6: 
+    - Now uses object-oriented file functions
+      Also checks to see if files were opened correctly, 
+      preventing errors
+    
 
 --]]
 
@@ -62,7 +68,7 @@ local M = {}
 
 -- Local variables to store various settings
 local level, filename, toprint, tofile, timezone
-local version = 0.5
+local version = 0.6
 
 -- ############### Public Functions ###############
 
@@ -163,14 +169,24 @@ function M.log(message, lvl)
             end
 
             -- Open the logfile filename for writing
-            file.open(filename, "a+")
+            fhandle = file.open(filename, "a+")
 
-            -- Write the line to the logfile
-            file.writeline(msg)
-
-            -- Close the file
-            file.close()
-
+            -- Check to see if the file opened successfully
+            if fhandle then 
+            
+                -- Write the line to the logfile
+                fhandle:writeline(msg)
+    
+                -- Close the file
+                fhandle:close()
+            else
+            
+                -- Print error message
+                print("Couldn't open " .. filename)
+          
+                -- Logging was unsuccessful
+                return false                
+            end
         end
     end
 
