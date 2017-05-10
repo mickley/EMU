@@ -26,8 +26,12 @@ Replace the EDITME sections with your own information
     - Added thingspeak API key again, and an option to specify whether to sync 
       time over SNTP when connected to wifi
 
-- 4/3/2017   JGM - Version 1.6
+- 4/3/2017   JGM - Version 1.6:
     - Reconfigured for the EMUse project
+
+- 5/10/2017  JGM - Version 1.7:
+    - Got rid of the volt_adj parameter for reading internal voltage
+    - It's now +/- obsolete with current ESP modules.  
 
 --]]
 
@@ -67,15 +71,14 @@ wifi_hostname = "Natalie"
 -- Sync the time via sntp when connected to wifi
 wifi_sync_time = false
 
--- Time sync ntp server
+-- Time sync ntp servers if syncing time
 -- Lots of options here, find the best one
 -- Note: might be good to find an alternate
 timeserver1 = "us.pool.ntp.org"
 timeserver2 = "pool.ntp.org"
--- 1.us.pool.ntp.org
 
 -- Hours relative to UTC
-timezone = -5
+timezone = -5 -- EST
 
 --Interval to sleep in minutes
 interval = 15
@@ -83,9 +86,6 @@ interval = 15
 
 -- ##### Miscellany #####
 
-
--- adc.readvdd33() is low by about 0.25V for D1 Mini
-volt_adj = 0.25
 
 -- Add the thingspeak API key to use
 thingspeak_API = "ZXNCFVFTJ3ZN2174"
