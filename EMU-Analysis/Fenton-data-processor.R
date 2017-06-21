@@ -25,17 +25,10 @@ ibuttons <- read.csv("Data/EMU-6-21/ibuttons-combined.csv") %>%
     mutate(source = "iButton", 
         timestamp = as.POSIXct(timestamp, tz = "America/New_York"))
 
-
-#### Hobo Data ####
-
-
-
-
-
 #### EMU Data ####
 
 
-# Get a list of data files from the folder
+# Get a list of EMU data files from the folder
 emus <- list.files(path = datafolder, pattern = "*-data.csv")
 
 # Make an empty dataset
@@ -60,6 +53,95 @@ for (file in emus) {
  
 # Read in the site data
 sites <- read.csv("Data/emu-sitedata-v2.csv", stringsAsFactors = F)
+
+
+
+
+#### Hobo Microstation Data ####
+
+# Get a list of EMU data files from the folder
+micros <- list.files(path = datafolder, pattern = "*_sta.csv")
+
+# Make an empty dataset
+micro = data.frame()
+
+# Process each data file one at a time
+for (file in micros) {
+    
+    # Get the transect name from the filename
+    transect <- strsplit(file, "_")[[1]][1] %>% substr(7, 13)
+    
+    # Read the datafile in from csv
+    tmp <- read.csv(paste(datafolder, file, sep = "")) %>% 
+        
+        # Add a column for the transect name
+        mutate(transect = transect)
+    
+    # Append this microstation's data onto the dataset
+    micro <- rbind(micro, tmp)
+    
+}
+
+# Wrangle the microstation data
+micro <- micro %>%
+    
+    # Add columns for site, data source, and transect order
+    mutate(site = "Fenton", source = "Hobo", order = 1) %>%
+
+    # Convert the timestamp to POSIXct class
+    mutate(Time = as.POSIXct(Time, format = "%m/%d/%y %I:%M:%S %p", 
+        tz = "America/New_York")) %>%
+    
+    # Get lat and long from sites csv
+    left_join(sites, by = c("site", "transect", "order")) %>%
+    
+    # Select, rename, and order the columns
+    select(timestamp = Time, site, transect, order, lat, long, 
+        source, par = PAR, vwc = Water.Content)
+
+
+#### Hobo Pendant Data ####
+
+
+# Get a list of EMU data files from the folder
+pendants <- list.files(path = datafolder, pattern = "F*[1-4].csv")
+
+# Make an empty dataset
+pendant = data.frame()
+
+# Process each data file one at a time
+for (file in pendants) {
+    
+    # Get the hobo pendant name from the filename
+    name <- strsplit(file, ".csv")[[1]][1] 
+    
+    # Read the datafile in from csv
+    tmp <- read.csv(paste(datafolder, file, sep = "")) %>% 
+        
+        # Add a column for the hobo name
+        mutate(hobo = as.character(name))
+    
+    # Append this pendants's data onto the dataset
+    pendant <- rbind(pendant, tmp)
+    
+}
+
+# Wrangle the pendant data
+pendant <- pendant %>%
+    
+    # Add a column for data source
+    mutate(source = "Hobo") %>%
+    
+    # Convert the timestamp to POSIXct class
+    mutate(Time = as.POSIXct(Time, format = "%m/%d/%y %I:%M:%S %p", 
+        tz = "America/New_York")) %>%
+    
+    # Get lat and long from sites csv
+    left_join(sites, by = "hobo") %>%
+    
+    # Select, rename, and order the columns
+    select(timestamp = Time, site, transect, order, lat, long, 
+           source, temperature = Temp)
 
 
 ##### Combine Datasets & Wrangle #####
@@ -89,7 +171,7 @@ data <- data %>%
     mutate(par = 0.01405 * light + 33.4) %>%
 
     # Add iButton data
-    bind_rows(ibuttons) %>%
+    bind_rows(ibuttons, micro, pendant) %>%
 
     # Add additional date/time columns
     mutate(
@@ -124,8 +206,12 @@ data <- data %>%
         
         # Start time for the two Fenton transects
         (site == "Fenton" & 
-            timestamp >= as.POSIXct("2017-05-30 13:30"))
-            
+            timestamp >= as.POSIXct("2017-05-30 13:30")), 
+        
+        # End time for the two Fenton transects
+        (site == "Fenton" & 
+             timestamp <= as.POSIXct("2017-06-21 12:45"))
+
         # Start time for the Fenton transects
         #(site == "Fenton" & 
         #    timestamp >= as.POSIXct("2017-04-15 14:45")) |
@@ -135,16 +221,15 @@ data <- data %>%
         #    timestamp >= as.POSIXct("2017-05-02 10:00"))
         
         ) %>%
-            
+    
+    # Arrange the dataset
     arrange(site, transect, order, source, timestamp)
     
 
-str(data)
-
 
 # Write out data to csv
-#write.csv(data, file = paste(datafolder, "alldata.csv", sep = ""))
+write.csv(data, file = paste(datafolder, "fentondata-all.csv", sep = ""))
 
 # Write out a message
-#cat(paste("Datafiles processed to: ", datafolder, "alldata.csv", sep = ""))
+cat(paste("Datafiles processed to: ", datafolder, "fentondata-all.csv", sep = ""))
 
