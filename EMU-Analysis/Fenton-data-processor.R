@@ -32,7 +32,7 @@ ibuttons <- read.csv("Data/EMU-6-21/ibuttons-combined.csv") %>%
 emus <- list.files(path = datafolder, pattern = "*-data.csv")
 
 # Make an empty dataset
-data = data.frame()
+emu = data.frame()
     
 # Process each data file one at a time
 for (file in emus) {
@@ -47,7 +47,7 @@ for (file in emus) {
         mutate(emu = name)
     
     # append this emu's data onto the dataset
-    data <- rbind(data, tmp)
+    emu <- rbind(emu, tmp)
 
 }
  
@@ -55,9 +55,8 @@ for (file in emus) {
 sites <- read.csv("Data/emu-sitedata-v2.csv", stringsAsFactors = F)
 
 
-
-
 #### Hobo Microstation Data ####
+
 
 # Get a list of EMU data files from the folder
 micros <- list.files(path = datafolder, pattern = "*_sta.csv")
@@ -69,13 +68,13 @@ micro = data.frame()
 for (file in micros) {
     
     # Get the transect name from the filename
-    transect <- strsplit(file, "_")[[1]][1] %>% substr(7, 13)
+    name <- strsplit(file, "_")[[1]][1]
     
     # Read the datafile in from csv
     tmp <- read.csv(paste(datafolder, file, sep = "")) %>% 
         
         # Add a column for the transect name
-        mutate(transect = transect)
+        mutate(hobo = name)
     
     # Append this microstation's data onto the dataset
     micro <- rbind(micro, tmp)
@@ -86,18 +85,18 @@ for (file in micros) {
 micro <- micro %>%
     
     # Add columns for site, data source, and transect order
-    mutate(site = "Fenton", source = "Hobo", order = 1) %>%
+    mutate(source = "Hobo", type = "Micro") %>%
 
     # Convert the timestamp to POSIXct class
     mutate(Time = as.POSIXct(Time, format = "%m/%d/%y %I:%M:%S %p", 
         tz = "America/New_York")) %>%
     
     # Get lat and long from sites csv
-    left_join(sites, by = c("site", "transect", "order")) %>%
+    left_join(sites, by = "hobo") %>%
     
     # Select, rename, and order the columns
     select(timestamp = Time, site, transect, order, lat, long, 
-        source, par = PAR, vwc = Water.Content)
+        source, type, par = PAR, vwc = Water.Content)
 
 
 #### Hobo Pendant Data ####
@@ -129,8 +128,8 @@ for (file in pendants) {
 # Wrangle the pendant data
 pendant <- pendant %>%
     
-    # Add a column for data source
-    mutate(source = "Hobo") %>%
+    # Add a column for data source and hobo type
+    mutate(source = "Hobo", type = "Pendant") %>%
     
     # Convert the timestamp to POSIXct class
     mutate(Time = as.POSIXct(Time, format = "%m/%d/%y %I:%M:%S %p", 
@@ -141,17 +140,17 @@ pendant <- pendant %>%
     
     # Select, rename, and order the columns
     select(timestamp = Time, site, transect, order, lat, long, 
-           source, temperature = Temp)
+           source, type, temperature = Temp)
 
 
 ##### Combine Datasets & Wrangle #####
 
 
 # Manipulate the data
-data <- data %>%
+data <- emu %>%
     
     # Add source column
-    mutate(source = "EMU") %>%
+    mutate(source = "EMU", type = NA) %>%
     
     # Convert timestamp to text date
     mutate(Timestamp = as.POSIXct(Timestamp, origin = "1970-01-01", 
@@ -162,6 +161,13 @@ data <- data %>%
     
     # Join the emu and site specific data
     left_join(sites, by = "emu") %>%
+    
+    # Replace -100 with NAs for EMU data
+    mutate(
+        temperature = replace(temperature, temperature < -40, NA), 
+        humidity = replace(humidity, humidity == -100, NA), 
+        light = replace(light, light == -100, NA), 
+        soil = replace(soil, soil == -100, NA)) %>%
     
     # Add vwc based on good sand calibration
     mutate(vwc = 6.552253e-01 + -4.955260e-05 * soil + 
@@ -193,7 +199,7 @@ data <- data %>%
 
         
     # Reorder columns
-    select(site, transect, order, lat, long, source, emu, timestamp, day, hour, 
+    select(site, transect, order, lat, long, source, type, emu, timestamp, day, hour, 
            minute, day.hr, day.min, temperature, 
            humidity, vwc, par, light, soil, pressure, voltage) %>%
             
@@ -222,13 +228,14 @@ data <- data %>%
         
         ) %>%
     
-    # Arrange the dataset
-    arrange(site, transect, order, source, timestamp)
     
+    
+    # Arrange the dataset
+    arrange(site, transect, order, source, type, timestamp)
 
 
 # Write out data to csv
-write.csv(data, file = paste(datafolder, "fentondata-all.csv", sep = ""))
+write.csv(data, file = paste(datafolder, "fentondata-all.csv", sep = ""), row.names = F)
 
 # Write out a message
 cat(paste("Datafiles processed to: ", datafolder, "fentondata-all.csv", sep = ""))
