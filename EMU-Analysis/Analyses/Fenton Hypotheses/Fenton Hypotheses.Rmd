@@ -1,0 +1,469 @@
+---
+title: "Analysis of Fenton Hypotheses"
+author: "James Mickley"
+output:
+  html_document:
+    keep_md: yes
+    theme: readable
+  html_notebook:
+    fig_caption: yes
+    theme: readable
+graphics: yes
+---
+
+```{r setup, include = F}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Knitr Options
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Set root directory to the project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+
+# Set default knitr options: 
+# Suppress warnings and messages, cache chunks, 
+#  set default figure size to 6x8 at 300 dpi, and save a png and pdf
+knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
+    fig.height = 6, fig.width = 8, dpi = 300, # 6x8" @ 300dpi:1800x2400=4.3MP
+    dev = c('png', 'pdf'), dev.args = list(pdf = list(onefile = F)))
+
+```
+
+### Overview
+
+We set up a number of expectations for the Fenton site
+
+1. The temperature should be lower in the woods
+2. The humidity should be higher in the woods
+3. The light levels should be lower in the woods
+4. Soil moisture should show a gradient in both transects
+    a. The woods should have a gradient from top to bottom of hill
+    b. The meadow should have a gradient from the meadow to the swamp
+
+
+
+```{r 'Main_Code', include = F}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Setup - This code is run, but output is hidden
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Load Packages
+require(cowplot) # Needed for publication-quality ggplots
+require(tidyr) # Needed for data wrangling
+require(lubridate) # Needed for date wrangling
+require(knitr) # Needed to print tables to markdown
+require(dplyr) # Needed for data wrangling, load last to avoid conflicts
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Data Preparation
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Import datasets
+data <- read.csv("Data/EMU-6-21/fentondata-all.csv")
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ ggPlot Theme
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+ggplot.theme <- theme(
+    
+    # Text size for axis ticks
+    axis.text.y = element_text(size = 14),
+    axis.text.x = element_text(size = 14),
+    
+    # Text size for axis labels
+    # Also move them away from the axes a bit for more space
+    axis.title.x = element_text(size = 18, face = "bold", vjust = -1),
+    axis.title.y = element_text(size = 18, face = "bold", vjust = 1.5),
+    
+    # Plot title size
+    plot.title = element_text(size = 20, face = "bold"),
+    
+    # Margins for top, right, bottom, left
+    plot.margin = grid::unit(c(1.5, 1.5, 1.5, 1.2), "lines"), 
+    
+    # Legend text size
+    legend.text = element_text(size = 14),
+    legend.text.align = 0, 
+    legend.title = element_text(size = 16, face = "bold"),
+    legend.key.size = grid::unit(1.4, "line"),
+    legend.key = element_blank()
+    )
+
+
+```
+
+
+```{r 'Data_Wrangling', echo = F, include = F}
+
+
+# Data wrangling on the main dataset
+fenton <- data %>%
+    
+    # Convert the timestamp to a date/time object
+    mutate(timestamp = as.POSIXct(timestamp)) %>%
+    
+    # Remove the seconds from the time, leaving only hour/minute
+    mutate(timestamp = timestamp - second(timestamp))
+
+# Take a look at the structure of the main dataset
+str(fenton)
+
+
+# Convert the dataset to wide format 
+data.wide <- data %>%
+
+    # Go to pure long format: all measurements in one column
+    gather(measurement, value, temperature, humidity, vwc, 
+        par, light, soil, pressure) %>%
+    
+    # Make a column that is both source & measurement type
+    unite(measure, source, measurement) %>%
+    
+    # Get rid of columns that aren't needed
+    # Or won't work with wide format
+    select(-site, -voltage, -type, -emu) %>%
+    
+    # Filter out the rows where the value is NA 
+    filter(!is.na(value)) %>%
+    
+    # Go from long format to wide: each row is a site at one time
+    spread(measure, value)
+
+
+# Take a look at the structure of the wide dataset
+str(data.wide)
+
+
+
+# Calculate hourly means and differences between 2 transects @ Fentonb
+diff <- fenton %>%
+    
+    filter(source == "EMU") %>%
+
+    # Group by transect and each hour separately
+    group_by(hour, transect) %>%
+    
+    # Calculate mean and variance by hour for each transect
+    mutate(t.mean = mean(temperature, na.rm = T), 
+        t.var = var(temperature, na.rm = T), 
+        t.obs = sum(!is.na(temperature)),
+        h.mean = mean(humidity, na.rm = T), 
+        h.var = var(humidity, na.rm = T), 
+        h.obs = sum(!is.na(humidity)),
+        l.mean = mean(par, na.rm = T), 
+        l.var = mean(par, na.rm = T), 
+        l.obs = sum(!is.na(par))) %>%
+    
+    # Group by hour alone
+    group_by(hour) %>%
+    
+    # Calculate difference between fenton woods and meadow for each hour
+    # Also calculate standard error of differences between means & 95% conf.int
+    # http://onlinestatbook.com/2/sampling_distributions/samplingdist_diff_means.html
+    # http://stattrek.com/estimation/difference-in-means.aspx?Tutorial=AP
+    mutate(t.diff = t.mean - t.mean[transect == "Meadow"][1], 
+        t.vn = t.var / t.obs,
+        t.stderr = sqrt(t.vn + t.vn[transect == "Meadow"][1]), 
+        t.conf = t.stderr * 1.96,
+        
+        h.diff = h.mean - h.mean[transect == "Meadow"][1], 
+        h.vn = h.var / h.obs,
+        h.stderr = sqrt(h.vn + h.vn[transect == "Meadow"][1]), 
+        h.conf = h.stderr * 1.96,
+        
+        l.diff = l.mean - l.mean[transect == "Meadow"][1], 
+        l.vn = l.var / l.obs,
+        l.stderr = sqrt(l.vn + l.vn[transect == "Meadow"][1]), 
+        l.conf = l.stderr * 1.96
+        
+        ) %>%
+    
+    # Group by only the variables needed and summarize
+    group_by(transect, day, hour, day.hr, t.mean, t.diff, t.stderr, t.conf, 
+        h.mean, h.diff, h.stderr, h.conf, 
+        l.mean, l.diff, l.stderr, l.conf) %>%
+    
+    # Summarize by transect & hour
+    summarize %>%
+    
+    # Convert back to normal data frame
+    data.frame
+
+
+
+
+# Create a new dataset with just diff & conf.int
+diff.long <- diff %>% 
+    
+    # Only include the woods, since differences will be zero @ Meadow (reference pt)
+    filter(transect == "Woods") %>%
+    
+    # Get rid of unneeded columns
+    select(-t.mean, -h.mean, -l.mean, -t.stderr, -h.stderr, -l.stderr) %>%
+    
+    # Gather diff and conf columns into variable & value columns
+    gather(variable, value, ends_with("diff"), ends_with("conf")) %>%
+    
+    # Split the variable column into measurement and variable
+    separate(variable, into = c('measurement','var')) %>%
+    
+    # Spread the variable & value columns back into diff and conf cols
+    spread(var, value) %>%
+    
+    # Recode t, h, and l, into their measurement names
+    mutate(measurement = factor(recode(measurement, 
+        "t" = "Temperature", "h" = "Humidity", "l" = "PAR"), 
+        levels = c("Temperature", "Humidity", "PAR"))) 
+
+
+
+# Make a mean volumetric water content by hour/emu dataset
+soil.hr <- fenton %>%
+
+    # Group by emu and hour
+    group_by(transect, emu, order, day, hour, day.hr) %>%
+    
+    # Summarize means and standard errors for each emu by hour
+    summarize(mean = mean(vwc), stderr = sd(vwc) / sqrt(n())) %>%
+    
+    # Convert to normal data frame
+    data.frame
+
+
+
+
+# Figure out hours for darkness
+darkness <- data.frame(dusk = seq(from = 8, to = 528, by = 24), 
+        dawn = seq(from = 17, to = 528, by = 24))
+
+# Duplicate the darkness dataset with different ymin/ymax by variable
+diff.darkness <- rbind(
+    darkness %>% mutate(measurement = "Temperature", ymin = -14, ymax = 8), 
+    darkness %>% mutate(measurement = "Humidity", ymin = -26, ymax = 37), 
+    darkness %>% mutate(measurement = "PAR", ymin = -1400, ymax = 10)) %>%
+    
+    # Order the measurements
+    mutate(measurement = factor(measurement, 
+        levels = c("Temperature", "Humidity", "PAR")))
+
+# Make a darkness dataset for soil moisture
+soil.darkness <- darkness %>%
+    mutate(ymin = 0, ymax = 0.45)
+
+```
+
+## Missing Data
+
+### EMUs
+
+```{r 'Missing_Data', echo = F}
+
+# Calculate percentage of missing data by EMU
+missing.data <- fenton %>%
+    
+    # Only use data from EMUs
+    filter(source == "EMU") %>%
+    
+    # Select the variables to work with
+    select(emu, temperature, humidity, par, vwc) %>%
+
+    # Group by the EMUs
+    group_by(emu) %>%
+    
+    # Sum up the number of logs, and calculate percent missing
+    mutate(logs = n(), logs.missing = 1 - (logs/2109)) %>%
+    
+    # Ungroup
+    ungroup %>%
+    
+    # Go to pure long format: all measurements in one column
+    gather(measurement, value, temperature, humidity, vwc, 
+        par) %>%
+    
+    # Group by emu/measurement
+    group_by(emu, logs, logs.missing, measurement) %>%
+    
+    # Summarize the number of non-NA values
+    summarize(n = sum(!is.na(value))) %>%
+    
+    # Group by EMU
+    group_by(emu) %>%
+    
+    # Calculate the number of points missing
+    mutate(data.missing = 1 - sum(n) / (2109*4)) %>%
+    
+    # Spread the measurements back out into columns
+    spread(measurement, n) %>%
+    
+    # Select column order
+    select(emu, logs, logs.missing, temperature, humidity, par, 
+        vwc, data.missing) %>%
+    
+    
+    # Ungroup  
+    ungroup
+    
+
+# Add a line for totals
+missing.data %>%
+
+    # Total everything up
+    summarize(emu = "Total", logs = sum(logs), 
+        logs.missing = 1 - (logs/(2109*8)), 
+        temperature = sum(temperature), 
+        humidity = sum(humidity), 
+        par = sum(par), vwc = sum(vwc), 
+        data.missing = 1 - (temperature + humidity + par + vwc) / 
+            (2109*4*8)
+        ) %>%
+    
+    # Add to the summaries of each EMU
+    rbind(missing.data, .) %>%
+    
+    # Roud missing data to 3 decimals
+    mutate_each(funs(round(.,3)), logs.missing, data.missing) %>%
+    
+    # Print a markdown table
+    kable(digits = 3, format = "markdown")
+
+
+```
+
+
+### iButtons
+
+
+
+### Hobo Pendants
+
+
+
+### Hobo Microstations
+
+
+## Main Hypotheses
+
+
+```{r 'Hourly_Differences', echo = F}
+
+# Take the long dataset
+diff.long %>%
+
+    # Graph differerences by hour
+    ggplot(aes(x = hour, y = diff, color = measurement)) + 
+
+        # Facet by measurement
+        facet_wrap(~ measurement, ncol = 1, scales = "free") + 
+    
+        # Add rectangles for darkness
+        geom_rect(data = diff.darkness, 
+            aes(xmin = dusk, xmax = dawn, ymin = ymin, ymax = ymax, 
+                x = NULL, y = NULL, color = NULL), 
+            fill = "grey95", show.legend = F) + 
+        
+        # Add the points, colored by    
+        geom_point() + 
+    
+        # http://ggplot2.tidyverse.org/reference/geom_smooth.html
+        # http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/
+        #geom_smooth(aes(x = day.hr), method = "gam", 
+        #    formula = y ~ s(x, bs = "cc", k = 12)) + 
+    
+        # Add a red line at 0
+        geom_hline(yintercept = 0, color = "red") + 
+
+        # Add 95% confidence intervals as errorbars
+        #geom_errorbar(aes(ymin = diff - conf, ymax = diff + conf)) + 
+    
+        # Add axis labels and graph title
+        ylab("Relative Difference") + xlab("Hour") + 
+        ggtitle("Wood Difference Relative to Meadow") + 
+    
+        # Add the custom theme
+        ggplot.theme
+
+
+```
+
+
+
+
+```{r 'Soil_Gradient', echo = F}
+
+# Graph soil moisture gradients across transect
+soil.hr %>%
+
+    # Graph soil moisture by hour, coloring by order in the transect
+    ggplot(aes(x = hour, y = mean, color = order, group = order)) + 
+
+        # Facet by transect
+        facet_wrap(~ transect, ncol = 1) + 
+        
+        # Add lines for each EMU  
+        geom_line() + 
+    
+        # Add rectangles for darkness
+        geom_rect(data = soil.darkness, 
+            aes(xmin = dusk, xmax = dawn, ymin = ymin, ymax = ymax, 
+                x = NULL, y = NULL, color = NULL, group = NULL), 
+            fill = "grey95", show.legend = F) + 
+    
+        # Color from red to blue
+        scale_color_gradient(name = "EMU Order\nDry to Wet", 
+            low = "blue", high = "red", trans = 'reverse') + 
+
+        # Add 95% confidence intervals as errorbars
+        geom_errorbar(aes(ymin = mean - stderr, ymax = mean + stderr)) + 
+    
+        # Restrict to 0 - 0.4 VWC
+        coord_cartesian(ylim = c(0, 0.45)) + 
+    
+        # Add axis labels and graph title
+        ylab("Volumetric Water Content") + xlab("Hour") + 
+        ggtitle("Transect Moisture Gradients") + 
+    
+        # Add the custom theme
+        ggplot.theme
+
+```
+
+
+## Other Stuff
+
+```{r 'Hourly_Means', echo = F}
+
+# Plot hourly means for each transect and eacy variable
+diff %>%
+    
+    # Selec the hourly mean columns
+    select(transect, hour, t.mean, l.mean, h.mean) %>%
+    
+    # Gather the mean columns into long format
+    gather(measurement, mean, t.mean, l.mean, h.mean) %>%
+    
+    # Recode t, h, and l, into their measurement names
+    mutate(measurement = factor(recode(measurement, 
+        "t.mean" = "Temp", "h.mean" = "Humidity", "l.mean" = "Light"), 
+        levels = c("Temp", "Light", "Humidity"))) %>%
+
+    # Plot means over time, coloring by transect
+    ggplot(aes(x = hour, y = mean, color = transect)) + 
+        
+        # Facet by measurement
+        facet_wrap(~ measurement, ncol = 1, scales = "free") + 
+        
+        # Add points
+        geom_line() +
+    
+        # Add axis labels and graph title
+        ylab("Mean") + xlab("Hour") + 
+        ggtitle("Hourly Means") + 
+    
+        # Add the custom theme
+        ggplot.theme
+    
+
+```
+
