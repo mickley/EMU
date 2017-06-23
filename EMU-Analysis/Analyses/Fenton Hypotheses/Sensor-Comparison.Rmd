@@ -1,0 +1,301 @@
+---
+title: "Comparison Among different Sensor Types"
+author: "James Mickley"
+output:
+  html_notebook:
+    theme: readable
+  html_document:
+    keep_md: yes
+    theme: readable
+graphics: yes
+---
+
+```{r setup, include = F}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Knitr Options
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Set root directory to the project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+?second
+
+# Set default knitr options: 
+# Suppress warnings and messages, cache chunks, 
+#  set default figure size to 6x8 at 300 dpi, and save a png and pdf
+knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
+    fig.height = 6, fig.width = 8, dpi = 300, # 6x8" @ 300dpi:1800x2400=4.3MP
+    dev = c('png', 'pdf'), dev.args = list(pdf = list(onefile = F)))
+
+```
+
+
+
+### Overview
+
+This analysis compares the results for the EMU, Hobo Pendant, Hobo Microstation, and iButton at the first site in each of the two transects.  
+
+
+```{r 'Main_Code', include = F, cache = F}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Setup - This code is run, but output is hidden
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Load Packages
+require(cowplot) # Needed for publication-quality ggplots
+require(tidyr) # Needed for data wrangling
+require(lubridate) # Needed for date wrangling
+require(dplyr) # Needed for data wrangling, load last to avoid conflicts
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Data Preparation
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Import datasets
+data <- read.csv("Data/EMU-6-21/fentondata-all.csv")
+
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ ggPlot Theme
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+ggplot.theme <- theme(
+    
+    # Text size for axis ticks
+    axis.text.y = element_text(size = 14),
+    axis.text.x = element_text(size = 14),
+    
+    # Text size for axis labels
+    # Also move them away from the axes a bit for more space
+    axis.title.x = element_text(size = 18, face = "bold", vjust = -1),
+    axis.title.y = element_text(size = 18, face = "bold", vjust = 1.5),
+    
+    # Plot title size
+    plot.title = element_text(size = 20, face = "bold"),
+    
+    # Margins for top, right, bottom, left
+    plot.margin = grid::unit(c(1.5, 1.5, 1.5, 1.2), "lines"), 
+    
+    # Legend text size
+    legend.text = element_text(size = 14),
+    legend.text.align = 0, 
+    legend.title = element_text(size = 16, face = "bold"),
+    legend.key.size = grid::unit(1.4, "line"),
+    legend.key = element_blank()
+    )
+
+
+```
+
+
+```{r 'Data_Wrangling', echo = F, include = F}
+
+# Data wrangling on the main dataset
+data <- data %>%
+    
+    # Convert the timestamp to a date/time object
+    mutate(timestamp = as.POSIXct(timestamp)) %>%
+    
+    # Remove the seconds from the time, leaving only hour/minute
+    mutate(timestamp = timestamp - second(timestamp))
+
+# Take a look at the structure of the main dataset
+str(data)
+
+
+# Convert the dataset to wide format 
+data.wide <- data %>%
+
+    # Go to pure long format: all measurements in one column
+    gather(measurement, value, temperature, humidity, vwc, 
+        par, light, soil, pressure) %>%
+    
+    # Make a column that is both source & measurement type
+    unite(measure, source, measurement) %>%
+    
+    # Get rid of columns that aren't needed
+    # Or won't work with wide format
+    select(-site, -voltage, -type, -emu) %>%
+    
+    # Filter out the rows where the value is NA 
+    filter(!is.na(value)) %>%
+    
+    # Go from long format to wide: each row is a site at one time
+    spread(measure, value)
+
+
+# Take a look at the structure of the wide dataset
+str(data.wide)
+
+```
+
+### Temperature
+
+Differences in temperature between EMUs and Hobos at all positions, and between EMUs and iButtons at the first position of each transect
+
+
+```{r 'Temp_Diff', echo = F}
+
+
+# Plot relative differences in temperature
+data.wide %>%
+    
+    # Make columns for differences between EMUs and other sensors
+    mutate(iButton_diff = iButton_temperature - EMU_temperature, 
+           Hobo_diff = Hobo_temperature - EMU_temperature) %>%
+    
+    # Gather the differences into one column
+    gather(difference, value, iButton_diff, Hobo_diff) %>%
+    
+    # Plot differences over time
+    ggplot(aes(x = timestamp, y = value, color = difference)) +
+    
+        # Make a facet for each transect
+        facet_wrap(~ transect, ncol = 1, scales = "free_y") + 
+    
+        # Add points
+        geom_point(alpha = 0.5, size = 1.3) +
+    
+        # Add horizontal line at zero
+        geom_hline(yint = 0) + 
+    
+        # Theme the legend
+        #scale_color_manual(name = "Difference", values = c(2, 3)) + 
+    
+        # Add axis labels
+        xlab("Date") + 
+        ylab("Temperature (ºC)") + 
+    
+        # Add theme
+        ggplot.theme
+
+```
+
+
+### Humidity
+
+Differences in humidity between EMUs and iButtons at the first position of each transect
+
+
+```{r 'Humid_Diff', echo = F}
+
+
+# Plot relative differences in humidity
+data.wide %>%
+    
+    # Only include data from the first site on a transect
+    filter(order == 1) %>%
+    
+    mutate(difference = "iButton_diff") %>%
+    
+    # Plot differences over time
+    ggplot(aes(x = timestamp, y = iButton_humidity - EMU_humidity, color = difference)) +
+    
+        # Make a facet for each transect
+        facet_wrap(~ transect, ncol = 1, scales = "free_y") + 
+    
+        # Add points
+        geom_point(alpha = 0.5, size = 1.5) +
+    
+        # Add horizontal line at zero
+        geom_hline(yint = 0) + 
+    
+        # Theme the legend
+        scale_color_manual(name = "Difference", values = c("blue")) + 
+    
+        # Add axis labels
+        xlab("Date") + 
+        ylab("Relative Humidity (%)") + 
+    
+        # Add theme
+        ggplot.theme
+
+```
+
+
+
+
+
+### PAR
+
+Differences in PAR between EMUs and Hobo Microstations at the first position of each transect
+
+
+```{r 'PAR_Diff', echo = F}
+
+# Plot relative differences in PAR
+data.wide %>%
+    
+    # Only include data from the first site on a transect
+    filter(order == 1) %>%
+    
+    mutate(difference = "Hobo_diff") %>%
+    
+    # Plot differences over time
+    ggplot(aes(x = timestamp, y = Hobo_par - EMU_par, color = difference)) +
+    
+        # Make a facet for each transect
+        facet_wrap(~ transect, ncol = 1, scales = "free_y") + 
+    
+        # Add points
+        geom_point(alpha = 0.5, size = 1.5) +
+    
+        # Add horizontal line at zero
+        geom_hline(yint = 0) + 
+    
+        # Theme the legend
+        scale_color_manual(name = "Difference", values = c("darkgreen")) + 
+    
+        # Add axis labels
+        xlab("Date") + 
+        ylab("PAR") + 
+    
+        # Add theme
+        ggplot.theme
+
+```
+
+
+
+
+### Volumetric Water Content
+
+Differences in Volumetric Water Content between EMUs and Hobo Microstations at the first position of each transect
+
+
+```{r 'VWC_Diff', echo = F}
+
+
+# Plot relative differences in PAR
+data.wide %>%
+    
+    # Only include data from the first site on a transect
+    filter(order == 1) %>%
+    
+    mutate(difference = "Hobo_diff") %>%
+    
+    # Plot differences over time
+    ggplot(aes(x = timestamp, y = Hobo_vwc - EMU_vwc, color = difference)) +
+    
+        # Make a facet for each transect
+        facet_wrap(~ transect, ncol = 1, scales = "free_y") + 
+    
+        # Add points
+        geom_point(alpha = 0.5, size = 1.5) +
+    
+        # Add horizontal line at zero
+        geom_hline(yint = 0) + 
+    
+        # Theme the legend
+        scale_color_manual(name = "Difference", values = c("black")) + 
+    
+        # Add axis labels
+        xlab("Date") + 
+        ylab("Volumetric Water Content (ml/cm^3)") + 
+    
+        # Add theme
+        ggplot.theme
+
+```
+
+
