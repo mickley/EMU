@@ -112,7 +112,7 @@ str(fenton)
 
 
 # Convert the dataset to wide format 
-data.wide <- data %>%
+fenton.wide <- fenton %>%
 
     # Go to pure long format: all measurements in one column
     gather(measurement, value, temperature, humidity, vwc, 
@@ -133,7 +133,7 @@ data.wide <- data %>%
 
 
 # Take a look at the structure of the wide dataset
-str(data.wide)
+str(fenton.wide)
 
 
 
