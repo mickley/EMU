@@ -1,0 +1,229 @@
+---
+title: "Fenton Paired T-tests"
+author: "James Mickley"
+output:
+  html_document:
+    keep_md: yes
+    theme: readable
+  html_notebook:
+    theme: readable
+graphics: yes
+---
+
+```{r setup, include = F}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Knitr Options
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Set root directory to the project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+
+# Set default knitr options: 
+# Suppress warnings and messages, cache chunks, 
+#  set default figure size to 6x8 at 300 dpi, and save a png and pdf
+knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
+    fig.height = 6, fig.width = 8, dpi = 300, # 6x8" @ 300dpi:1800x2400=4.3MP
+    dev = c('png', 'pdf'), dev.args = list(pdf = list(onefile = F)))
+
+```
+
+
+
+## Overview
+
+Paired T-tests between the two transects.  These pair observations by timestamp and order within the transect.  Any times/orders without paired data are thrown out.  
+
+The difference in means is relative to the Woods transect 
+
+```{r 'Main_Code', include = F, cache = F}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Setup - This code is run, but output is hidden
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Load Packages
+require(lubridate) # Needed for date wrangling
+library(tidyr) # Needed for data wrangling
+library(dplyr) # Needed for data wrangling, load last to avoid conflicts
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Data Preparation
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Import datasets
+data <- read.csv("Data/EMU-6-21/fentondata-all.csv")
+
+
+```
+
+
+
+```{r 'Data_Wrangling', echo = F, include = F}
+
+# Data wrangling on the main dataset
+fenton <- data %>%
+    
+    # Convert the timestamp to a date/time object
+    mutate(timestamp = as.POSIXct(timestamp)) %>%
+    
+    # Remove the seconds from the time, leaving only hour/minute
+    mutate(timestamp = timestamp - second(timestamp))
+    
+
+# Take a look at the structure of the main dataset
+str(fenton)
+
+```
+
+
+### Temperature
+
+The woods is 1.8 ºC cooler than the meadow
+
+```{r 'Temperature', echo = F, comment = ""}
+
+# Paired t-test for temperature, based on hourly transect means
+#fenton %>%
+#    filter(source == "EMU") %>%
+#    group_by(transect, hour) %>%
+#    summarize(temperature = mean(temperature, na.rm = T)) %>%
+#    ungroup %>% data.frame %>% 
+#    t.test(temperature ~ transect, paired = T, data = .)
+
+
+# Paired t-test for temperature
+fenton %>%
+    
+    # Restrict to EMU data
+    filter(source == "EMU") %>%
+
+    # Select columns to work with
+    select(transect, order, timestamp, temperature) %>%
+    
+    # Spread, to make one column for each transect
+    spread(transect, temperature) %>%
+    
+    # Remove rows that don't have data for both transects
+    filter(!is.na(Meadow), !is.na(Woods)) %>%
+    
+    # Gather the data back into a transect and temperature column
+    gather(transect, temperature, Meadow, Woods) %>%
+    
+    # Reorder factor levels for transect
+    mutate(transect = factor(transect, levels = c("Woods", "Meadow"))) %>%
+    
+    # Perform paired t-test
+    t.test(temperature ~ transect, paired = T, data = .)
+
+
+```
+
+
+### Humidity
+
+The woods is 3.4% more humid than the meadow
+
+```{r 'Humidity', echo = F, comment = ""}
+
+
+# Paired t-test for humidity
+fenton %>%
+    
+    # Restrict to EMU data
+    filter(source == "EMU") %>%
+
+    # Select columns to work with
+    select(transect, order, timestamp, humidity) %>%
+    
+    # Spread, to make one column for each transect
+    spread(transect, humidity) %>%
+    
+    # Remove rows that don't have data for both transects
+    filter(!is.na(Meadow), !is.na(Woods)) %>%
+    
+    # Gather the data back into a transect and humidity column
+    gather(transect, humidity, Meadow, Woods) %>%
+    
+    # Reorder factor levels for transect
+    mutate(transect = factor(transect, levels = c("Woods", "Meadow"))) %>%
+    
+    # Perform paired t-test
+    t.test(humidity ~ transect, paired = T, data = .)
+
+
+```
+
+
+
+### PAR
+
+The woods gets light than the meadow by about 243 µmol/m^2/s (17300 lux)
+
+```{r 'PAR', echo = F, comment = ""}
+
+
+# Paired t-test for PAR
+fenton %>%
+    
+    # Restrict to EMU data
+    filter(source == "EMU") %>%
+
+    # Select columns to work with
+    select(transect, order, timestamp, par) %>%
+    
+    # Spread, to make one column for each transect
+    spread(transect, par) %>%
+    
+    # Remove rows that don't have data for both transects
+    filter(!is.na(Meadow), !is.na(Woods)) %>%
+    
+    # Gather the data back into a transect and par column
+    gather(transect, par, Meadow, Woods) %>%
+    
+    # Reorder factor levels for transect
+    mutate(transect = factor(transect, levels = c("Woods", "Meadow"))) %>%
+    
+    # Perform paired t-test
+    t.test(par ~ transect, paired = T, data = .)
+
+
+```
+
+
+
+### VWC
+
+The woods is drier than the meadow by about 0.19 ml/cm^3
+
+```{r 'VWC', echo = F, comment = ""}
+
+
+# Paired t-test for vwc
+fenton %>%
+    
+    # Restrict to EMU data
+    filter(source == "EMU") %>%
+
+    # Select columns to work with
+    select(transect, order, timestamp, vwc) %>%
+    
+    # Spread, to make one column for each transect
+    spread(transect, vwc) %>%
+    
+    # Remove rows that don't have data for both transects
+    filter(!is.na(Meadow), !is.na(Woods)) %>%
+    
+    # Gather the data back into a transect and vwc column
+    gather(transect, vwc, Meadow, Woods) %>%
+    
+    # Reorder factor levels for transect
+    mutate(transect = factor(transect, levels = c("Woods", "Meadow"))) %>%
+    
+    # Perform paired t-test
+    t.test(vwc ~ transect, paired = T, data = .)
+
+
+```
+
+
