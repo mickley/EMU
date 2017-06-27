@@ -187,6 +187,10 @@ diff <- fenton %>%
     
     # Summarize by transect & hour
     summarize %>%
+
+    # filter out meadow sites
+    
+    filter(transect=="Woods") %>%
     
     # Convert back to normal data frame
     data.frame
@@ -368,8 +372,8 @@ diff.long %>%
     
         # http://ggplot2.tidyverse.org/reference/geom_smooth.html
         # http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/
-        #geom_smooth(aes(x = day.hr), method = "gam", 
-        #    formula = y ~ s(x, bs = "cc", k = 12)) + 
+        geom_smooth(aes(x = day.hr), method = "gam",
+           formula = y ~ s(x, bs = "cc", k = 12)) +
     
         # Add a red line at 0
         geom_hline(yintercept = 0, color = "red") + 
@@ -388,7 +392,245 @@ diff.long %>%
 ```
 
 
+```{r 'Hourly_Differences', echo = F}
+library(mgcv)
 
+# Tim's attempt
+head(diff)
+head(fenton)
+
+# create fenton dataframe that excludes NAs for temperature
+fenton.temp <- fenton %>% filter(source== "EMU", temperature != is.na(temperature))
+
+
+# fit gamms with different correlationstructures and compare with AIC
+m1 <- gamm(temperature ~  s(day.hr, bs = "cc", k = 24) + s(hour) + transect , data = fenton.temp)
+
+
+# define control for corARMA (autoregressive models)
+ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
+
+m2 <- gamm(temperature ~  s(day.hr, bs = "cc", k = 24) + s(hour) + transect , data = fenton.temp, 
+           correlation = corARMA(form = ~ 1|day, p = 1), control = ctrl)
+
+# m3 <- gamm(temperature ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = fenton.temp, 
+#             correlation = corARMA(form = ~ 1|day, p = 2), control = ctrl)
+
+# AIC comparison
+AIC(m1$lme, m2$lme)
+
+# plot gamms
+plot(m1$gam, scale = 0)
+plot(m2$gam, scale = 0)
+
+# plot of autocorrelation in variances
+acf(resid(m1$lme), lag.max = 30)
+pacf(resid(m1$lme), lag.max = 30)
+acf(resid(m2$lme), lag.max = 30)
+pacf(resid(m2$lme), lag.max = 30)
+
+# predict new data to use in ggplot with geom_line
+p.m1 <- data.frame(predict(m1$gam, se.fit = TRUE))
+p.m2 <- data.frame(predict(m2$gam, se.fit = TRUE))
+
+# add hour variable to newdata from predict
+p.m1$hour <- filter(fenton.temp,source== "EMU")$hour
+p.m2$hour <- filter(fenton.temp,source== "EMU")$hour
+
+
+colnames(p.m1) <- c("data.fit", "se.fit", "hour")
+colnames(p.m2) <- c("data.fit", "se.fit", "hour")
+ggplot()+ 
+    
+    geom_point(data = fenton.temp, aes(x = hour, y = temperature), size = 0.7, alpha = 0.8) +
+    
+    geom_line(data = p.m2, aes(x = hour, y = data.fit), lwd = 2, color = "darkblue") +
+    
+    # SE ribbon
+    geom_ribbon(data = p.m2, aes(x = hour, ymax = (data.fit + (se.fit* 1.96)) , 
+                                 ymin = (data.fit - (se.fit * 1.96))), lwd = 2, fill = "red", alpha = 0.3) +
+    
+    # facet_wrap( ~ transect, ncol = 1) + 
+
+        
+    # Add the custom theme
+     ggplot.theme
+
+```
+
+
+```{r 'Hourly_Differences', echo = F}
+# calculate gamms for differences TEMPERATURE
+head(diff)
+# create fenton dataframe that excludes NAs for temperature
+diff.temp <- diff %>% filter(!is.na(t.diff))
+
+# fit gamms with different correlationstructures and compare with AIC
+m1 <- gamm(t.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.temp)
+
+
+# define control for corARMA (autoregressive models)
+ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
+
+m2 <- gamm(t.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.temp, 
+           correlation = corARMA(form = ~ 1|day, p = 1), control = ctrl)
+
+
+plot(m2$gam)
+# predict new data to use in ggplot with geom_line
+p.m1 <- data.frame(predict(m1$gam, se.fit = TRUE))
+p.m2 <- data.frame(predict(m2$gam, se.fit = TRUE))
+
+# add hour variable to newdata from predict
+p.m1$hour <- diff.temp$hour
+p.m2$hour <- diff.temp$hour
+
+# change colnames
+colnames(p.m1) <- c("data.fit", "se.fit", "hour")
+colnames(p.m2) <- c("data.fit", "se.fit", "hour")
+
+ggplot()+ 
+    
+    
+    geom_line(data = p.m2, aes(x = hour, y = data.fit), lwd = 1, color = "darkblue") +
+    
+    # SE ribbon
+    geom_ribbon(data = p.m2, aes(x = hour, ymax = (data.fit + (se.fit* 1.96)) , 
+                                 ymin = (data.fit - (se.fit * 1.96))), lwd = 1, fill = "red", alpha = 0.3) +
+    
+    # facet_wrap( ~ transect, ncol = 1) + 
+        
+    geom_point(data = diff.temp, aes(x = hour, y = t.diff), alpha = 0.8) +
+    
+    xlab("Hour") + 
+    
+    ylab("Temperature Difference") + 
+
+    
+    # Add a red line at 0
+    geom_hline(yintercept = 0, color = "red") + 
+        
+    # Add the custom theme
+     ggplot.theme
+
+```
+
+```{r 'Hourly_Differences', echo = F}
+# calculate gamms for differences of HUMIDITY
+head(diff)
+# create fenton dataframe that excludes NAs for temperature
+diff.humid <- diff %>% filter(!is.na(h.diff))
+
+# fit gamms with different correlationstructures and compare with AIC
+m1 <- gamm(h.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.humid)
+
+
+# define control for corARMA (autoregressive models)
+ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
+
+m2 <- gamm(h.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.humid, 
+           correlation = corARMA(form = ~ 1|day, p = 1), control = ctrl)
+
+
+plot(m2$gam)
+# predict new data to use in ggplot with geom_line
+p.m1 <- data.frame(predict(m1$gam, se.fit = TRUE))
+p.m2 <- data.frame(predict(m2$gam, se.fit = TRUE))
+
+length(p.m1[, 1])
+length(diff.humid$hour)
+
+# add hour variable to newdata from predict
+p.m1$hour <- diff.humid$hour
+p.m2$hour <- diff.humid$hour
+
+# change colnames
+colnames(p.m1) <- c("data.fit", "se.fit", "hour")
+colnames(p.m2) <- c("data.fit", "se.fit", "hour")
+
+ggplot()+ 
+    
+    geom_line(data = p.m2, aes(x = hour, y = data.fit), lwd = 1, color = "darkblue") +
+    
+    # SE ribbon
+    geom_ribbon(data = p.m2, aes(x = hour, ymax = (data.fit + (se.fit)) , 
+                                 ymin = (data.fit - (se.fit))), lwd = 1, fill = "red", alpha = 0.3) +
+    
+    geom_point(data = diff.humid, aes(x = hour, y = h.diff), alpha = 0.8) +
+    # facet_wrap( ~ transect, ncol = 1) +
+    
+    xlab("Hour") + 
+    
+    ylab("Humidity Difference") + 
+        
+    # Add a red line at 0
+    geom_hline(yintercept = 0, color = "red") + 
+        
+    # Add the custom theme
+     ggplot.theme
+
+```
+
+```{r 'Hourly_Differences', echo = F}
+# calculate gamms for differences of LIGHT
+head(diff)
+# create fenton dataframe that excludes NAs for temperature
+diff.light <- diff %>% filter(!is.na(l.diff))
+
+head(diff.light)
+# fit gamms with different correlationstructures and compare with AIC
+m1 <- gamm(l.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.light)
+
+
+# define control for corARMA (autoregressive models)
+ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
+
+m2 <- gamm(l.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.light, 
+           correlation = corARMA(form = ~ 1|day, p = 1), control = ctrl)
+
+plot(m2$gam)
+
+plot(m2$gam)
+# predict new data to use in ggplot with geom_line
+p.m1 <- data.frame(predict(m1$gam, se.fit = TRUE))
+p.m2 <- data.frame(predict(m2$gam, se.fit = TRUE))
+
+# add hour variable to newdata from predict
+p.m1$hour <- diff.light$hour
+p.m2$hour <- diff.light$hour
+
+# change colnames
+colnames(p.m1) <- c("data.fit", "se.fit", "hour")
+colnames(p.m2) <- c("data.fit", "se.fit", "hour")
+
+head(diff)
+
+ggplot()+ 
+    
+    geom_line(data = p.m2, aes(x = hour, y = data.fit), lwd = 1, color = "darkblue") +
+
+    # SE ribbon
+    geom_ribbon(data = p.m2, aes(x = hour, ymax = (data.fit + (se.fit)) ,
+                                 ymin = (data.fit - (se.fit))), lwd = 1, fill = "red", alpha = 0.3) +
+    
+    geom_point(data = diff, aes(x = hour, y = l.diff), alpha = 0.8) +
+    # facet_wrap( ~ transect, ncol = 1) + 
+    
+        
+    xlab("Hour") + 
+    
+    ylab("Light Difference") + 
+        
+        
+    # Add a red line at 0
+    geom_hline(yintercept = 0, color = "red") + 
+        
+    # Add the custom theme
+     ggplot.theme
+
+
+
+```
 
 ```{r 'Soil_Gradient', echo = F}
 
