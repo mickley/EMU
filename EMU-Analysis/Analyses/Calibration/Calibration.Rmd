@@ -1,0 +1,674 @@
+---
+title: "LiCor Calibration"
+author: "James Mickley"
+output:
+  html_document:
+    keep_md: yes
+    theme: readable
+    toc: true
+  html_notebook:
+    theme: readable
+graphics: yes
+---
+
+```{r setup, include = F}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Knitr Options
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Set root directory to the project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+
+# Set default knitr options: 
+# Suppress warnings and messages, cache chunks, 
+#  set default figure size to 6x8 at 300 dpi, and save a png and pdf
+knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
+    fig.height = 6, fig.width = 8, dpi = 300, # 6x8" @ 300dpi:1800x2400=4.3MP
+    dev = c('png', 'pdf'), dev.args = list(pdf = list(onefile = F)))
+
+```
+
+
+
+### Overview
+
+This analysis calibrates the light and soil moisture sensors.
+
+The light sensor is calibrated for PAR against a LiCor and compared to a Hobo, while the soil probes are calibrated against measured volumetric water content and compared to a Hobo.
+
+```{r 'Main_Code', include = F, cache = F}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Setup - This code is run, but output is hidden
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Load Packages
+require(cowplot) # Needed for publication-quality ggplots
+require(ggpmisc) # Needed for lm equations on graphs
+require(bbmle) # Needed for AICctab
+require(tidyr) # Needed for data wrangling
+require(dplyr) # Needed for data wrangling, load last to avoid conflicts
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Data Preparation
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Import datasets
+light <- read.csv("Data/licor-calibration/licor-calibration.csv")
+soil <- read.csv("Data/Fenton-soil/Fenton_soil_calibration.csv")
+
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ ggPlot Theme
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+ggplot.theme <- theme(
+    
+    # Text size for axis ticks
+    axis.text.y = element_text(size = 14),
+    axis.text.x = element_text(size = 14),
+    
+    # Text size for axis labels
+    # Also move them away from the axes a bit for more space
+    axis.title.x = element_text(size = 18, face = "bold", vjust = -1),
+    axis.title.y = element_text(size = 18, face = "bold", vjust = 1.5),
+    
+    # Plot title size
+    plot.title = element_text(size = 20, face = "bold"),
+    
+    # Margins for top, right, bottom, left
+    plot.margin = grid::unit(c(1.5, 1.5, 1.5, 1.2), "lines"), 
+    
+    # Legend text size
+    legend.text = element_text(size = 14),
+    legend.text.align = 0, 
+    legend.title = element_text(size = 16, face = "bold"),
+    legend.key.size = grid::unit(1.4, "line"),
+    legend.key = element_blank()
+    )
+
+
+```
+
+### Light Calibration Results
+
+
+This shows the calibration of the [BH1750FVI light sensor](http://www.mouser.com/ds/2/348/bh1750fvi-e-186247.pdf) against a [LiCor LI-190R Quantum Sensor](https://www.licor.com/env/products/light/quantum.html) connected to a [LiCor LI-250 Light Meter](https://www.licor.com/env/products/light/light_meter.html)
+
+Both were mounted at the same angle and height on a board, and taking readings every second.
+
+#### Light Linear Model
+
+```{r 'Light_linear_model', echo = F, comment = ""}
+
+# Run a linear model
+light.lm <- lm(umol ~ lux, data = light)
+
+# Show summary
+summary(light.lm)
+
+```
+
+#### Light Quadratic Model
+
+```{r 'Light_quadratic_model', echo = F, comment = ""}
+
+# Run a quadratic model
+light.quad <- light %>%
+
+    # Add a squared column
+    mutate(lux.squared = lux ^ 2) %>%
+    
+    # model
+    lm(umol ~ lux + lux.squared, data = .)
+
+# Show summary
+summary(light.quad)
+
+```
+
+
+```{r 'Predict_Light', echo = F, include = F}
+
+# Update the dataset with predicted values from the linear models
+light <- light %>%
+    
+    # Add the linear calibration
+    mutate(umol.linear = light.lm$coefficients[1] + 
+        light.lm$coefficients[2] * lux) %>%
+    
+    # Add the quadratic calibration
+    mutate(umol.quad = light.quad$coefficients[1] + 
+        light.quad$coefficients[2] * lux + 
+        light.quad$coefficients[3] * lux ^ 2)
+
+
+```
+
+
+```{r 'Data_Wrangling_Light', echo = F, include = F}
+
+# Wrangle the hobo comparison data
+light.hobo.comp <- soil %>%
+
+    # Select only lux and hobo_par (renaming to umol)
+    select(lux, umol = hobo_par) %>%
+    
+    # Remove rows with missing data
+    filter(!is.na(umol), !is.na(lux)) %>%
+    
+    # Add the quadratic calibration
+    mutate(umol.quad = light.quad$coefficients[1] + 
+        light.quad$coefficients[2] * lux + 
+        light.quad$coefficients[3] * lux ^ 2) 
+    
+```
+
+
+
+#### Light Calibration Graphs
+
+Comparison between the linear and quadratic models
+
+```{r 'Light_model_comparison', echo = F}
+
+light %>%
+    
+    # Make a column with both the linear and quad predicted values
+    gather(calibration, value, umol.linear, umol.quad) %>%
+    
+    # Construct the graph
+    ggplot(aes(x = umol, y = value, color = calibration)) +
+    
+        # Add a line with a slope of 1 and intercept of 0
+        geom_abline(intercept = 0, slope = 1) + 
+
+        # Add points
+        geom_point() +
+    
+        # 
+        scale_color_manual(name = "Model", labels = c("Linear", "Quadratic"), 
+            values = c("red", "blue")) +
+    
+        # Add axes
+        xlab(bquote(bold('LiCor PAR (µmol '~m^-2 ~s^-1~')'))) +
+        ylab(bquote(bold('Calibrated PAR (µmol '~m^-2 ~s^-1~')'))) +
+    
+        # Add theme
+        ggplot.theme + 
+    
+        # Move the legend
+        theme(legend.position = c(0.2, 0.85))
+
+```
+
+
+The best calibration is the quadratic model, presented here alone
+
+
+```{r 'Light_quad_calibration', echo = F}
+
+# Construct the graph
+light %>% ggplot(aes(x = lux, y = umol)) +
+    
+        # Add points
+        geom_point() +
+    
+        # Add linear model
+        geom_smooth(method = "lm", color = "red", se = F, 
+            formula = y ~ poly(x, 2, raw = T)) + 
+    
+        # Add the equation
+        stat_poly_eq(aes(label = ..eq.label..),
+               eq.x.rhs = "italic(x)", coef.digits = 2, label.x = 50000, 
+               label.y = 2000, parse = T, size = 7,
+               formula = y ~ poly(x, 2, raw = T)) +
+        
+        # Add the R^2
+        stat_poly_eq(aes(label = ..rr.label..),
+               coef.digits = 2, label.x = 50000, label.y = 1800,
+               parse = T, size = 7, formula = y ~ poly(x, 2, raw = T)) +
+    
+        # Add axes
+        ylab(bquote(bold('LiCor PAR (µmol '~m^-2 ~s^-1~')'))) +
+        xlab("Sensor Value (Lux)") +
+    
+        # Add theme
+        ggplot.theme
+
+```
+
+Graph showing the predicted values of PAR from the quadratic model graphed against the LiCor
+
+```{r 'Light_predict', echo = F}
+
+#TODO: Add equation to graph
+
+# Construct the graph
+light %>% ggplot(aes(x = umol, y = umol.quad)) +
+    
+        # Add a line with a slope of 1 and intercept of 0
+        geom_abline(intercept = 0, slope = 1) + 
+    
+        # Add points
+        geom_point() +
+    
+        # Add axes
+        xlab(bquote(bold('LiCor PAR (µmol '~m^-2 ~s^-1~')'))) +
+        ylab(bquote(bold('Predicted Sensor PAR (µmol '~m^-2 ~s^-1~')'))) +
+    
+        # Add theme
+        ggplot.theme
+
+```
+
+This graph compares the BH1750FVI (calibrated to the LiCor) to a [Hobo Microstation](http://www.onsetcomp.com/products/data-loggers/h21-002) with a [S-LIA-M003 PAR Sensor](http://www.onsetcomp.com/products/sensors/s-lia-m003).  The Hobo shows very messy data.  This is the calibration run on the windowsill in TLS in parallel with the soil calibration
+
+```{r 'Light_sensor_comparison', echo = F}
+
+# Construct the plot
+light.hobo.comp %>% ggplot(aes(x = umol, y = umol.quad)) +
+
+        # Add points
+        geom_point(alpha = 0.4, color = "blue") +
+    
+        # Add a line with a slope of 1 and intercept of 0
+        geom_abline(intercept = 0, slope = 1) + 
+    
+        # Add axes
+        xlab(bquote(bold('Hobo PAR (µmol '~m^-2 ~s^-1~')'))) +
+        ylab(bquote(bold('EMU PAR (µmol '~m^-2 ~s^-1~')'))) +
+    
+        # Title
+        ggtitle("Windowsill Calibration") + 
+    
+        # Add theme
+        ggplot.theme
+
+```
+
+
+### Soil Calibration Results
+
+Calibration of generic silver and gold soil moisture sensor probes with a datalogging scale, measuring water content of the soil every five minutes. The soil used for calibration was a rich loam from the Fenton Meadow. The data columns soil1 and soil2 are gold (ENIG) probes, while soil3 is a silver (HASL) probe.
+
+Concurrently, the soil moisture was measured with a [Hobo Microstation](http://www.onsetcomp.com/products/data-loggers/h21-002) equipped with a [Decagon Devices ECH20 capacitive soil moisture sensor](http://www.decagondevices.eu/products/discontinued-products/ech2o-1).
+
+
+```{r 'Data_Wrangling_Soil', echo = F, comment = ""}
+
+# From the metadata
+fenton.dryweight = 992.7
+fenton.wetweight = 1638.7
+fenton.density = 0.90
+
+# Data wrangling
+cal <- soil %>%
+
+    # Remove the metadata column, and rename soil probes
+    select(-metadata, gold1 = soil1, gold2 = soil2, silver = soil3) %>%
+    
+    # Get rid of any missing data rows
+    filter(!is.na(weight)) %>%
+    
+    # Add columns for measured gravimetric and volumetric water content
+    mutate(gwc = (weight - fenton.dryweight) / fenton.dryweight, 
+        vwc = gwc * fenton.density) %>%
+    
+    # Convert the date to date format
+    mutate(date = as.POSIXct(date, format = "%m/%d/%y %H:%M"))
+
+
+```
+
+#### Soil Gold Linear Model
+
+```{r 'Soil_linear_gold_model', echo = F, comment = ""}
+
+
+# Calibrate the gold probes using a simple linear model
+gold.lm <- cal %>%
+    
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+
+    # Gather all the probe measurements into one column
+    # This combines data from the two gold probes
+    gather(probe, gold, gold1, gold2) %>%
+    
+    # Run the linear model
+    lm(vwc ~ gold, data = .)
+
+# View the model
+summary(gold.lm)
+
+```
+
+#### Soil Gold Linear Temperature Model (Combined)
+
+This model is better (by AICc), but it doesn't add much
+
+```{r 'Soil_linear_gold_temp_model', echo = F, comment = ""}
+
+
+# Calibrate the gold probe with a temperature compensated model
+gold.lm.temp <- cal %>%
+    
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+
+    # Gather all the probe measurements into one column
+    # This combines data from the two gold probes
+    gather(probe, gold, gold1, gold2) %>%
+    
+    # Run the linear model
+    lm(vwc ~ gold + temp, data = .)
+
+# View the model
+summary(gold.lm.temp)
+
+
+# Check AICs, temp-compensated is the best model, but doesn't add much
+AICctab(gold.lm, gold.lm.temp)
+
+
+```
+
+#### Soil Gold Quadratic Model (Combined)
+
+The quadratic model is considerably better
+
+```{r 'Soil_quadratic_gold_model', echo = F, comment = ""}
+
+# Calibrate the gold probes using a quadratic model
+gold.quad <- cal %>%
+  
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+
+    # Gather all the probe measurements into one column
+    # This combines data from the two gold probes
+    gather(probe, gold, gold1, gold2) %>%
+    
+    # Make a squared column
+    mutate(gold.squared = gold ^ 2) %>%
+
+    # Run the quadratic model
+    lm(vwc ~ gold + gold.squared, data = .)
+ 
+# View the model
+summary(gold.quad)
+
+# Check AICsh
+AICctab(gold.lm, gold.lm.temp, gold.quad)
+
+```
+
+#### Soil Gold Quadratic Model (Separate)
+
+Calulates a separate quadratic model for each probe.
+
+I've decided to use the Gold2 probe calibration.  The Gold1 probe did some funny things and was more corroded, so I think it's not so trustworthy.
+
+```{r 'Soil_quadratic_gold_models', echo = F, comment = ""}
+
+
+
+# Calibrate the first gold probe using a quadratic model
+gold.quad.1 <- cal %>%
+  
+    # Filter for after 7/15, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+    
+    # Make a squared column
+    mutate(gold1.squared = gold1 ^ 2) %>%
+
+    # Run the quadratic model
+    lm(vwc ~ gold1 + gold1.squared, data = .)
+ 
+# View the model
+summary(gold.quad.1)
+
+
+# Calibrate the first gold probe using a quadratic model
+gold.quad.2 <- cal %>%
+  
+    # Filter for after 7/15, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+    
+    # Make a squared column
+    mutate(gold2.squared = gold2 ^ 2) %>%
+
+    # Run the quadratic model
+    lm(vwc ~ gold2 + gold2.squared, data = .)
+ 
+# View the model
+summary(gold.quad.2)
+
+
+```
+
+#### Soil Silver Linear Model
+
+```{r 'Soil_linear_silver_model', echo = F, comment = ""}
+
+
+# Calibrate the silver probe using a simple linear model
+silver.lm <- cal %>%
+    
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+    
+    # Run the linear model
+    lm(vwc ~ silver, data = .)
+
+# View the model
+summary(silver.lm)
+
+```
+
+#### Soil Silver Quadratic Model
+
+```{r 'Soil_quadratic_silver_model', echo = F, comment = ""}
+
+
+# Calibrate the silver probe using a quadratic model
+silver.quad <- cal %>%
+    
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+    
+    # Make a squared column
+    mutate(silver.squared = silver ^ 2) %>%
+    
+    # Run the linear model
+    lm(vwc ~ silver + silver.squared, data = .)
+
+# View the model
+summary(silver.quad)
+
+# Check AICc
+AICctab(silver.lm, silver.quad)
+
+```
+
+
+
+```{r 'Predict_Soil', echo = F, include = F}
+
+# Update the dataset with predicted values from the linear models
+cal <- cal %>%
+    
+    # Add the quadratic calibration for the first gold probe
+    mutate(gold1_vwc = gold.quad.1$coefficients[1] + 
+        gold.quad.1$coefficients[2] * gold1 + 
+        gold.quad.1$coefficients[3] * gold1 ^ 2) %>%
+    
+    # Add the quadratic calibration for the second gold probe
+    mutate(gold2_vwc = gold.quad.2$coefficients[1] + 
+        gold.quad.2$coefficients[2] * gold2 + 
+        gold.quad.2$coefficients[3] * gold2 ^ 2) %>%
+    
+    # Add the quadratic calibration for the silver probe
+    mutate(silver_vwc = silver.quad$coefficients[1] + 
+        silver.quad$coefficients[2] * silver + 
+        silver.quad$coefficients[3] * silver ^ 2)
+
+
+```
+
+#### Soil Calibration Graphs
+
+Showing soil moisture probe values over time. There is some diurnal variation that is likely temperature driven.
+
+Adding temperature to the quadratic fit does improve things slightly, but the temperature range is only ~21-30 C, so it doesn't encompass the full temperature range outside
+
+```{r 'Soil_probes_over_time', echo = F}
+
+cal %>%
+    
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+    
+    gather(probe, value, gold1, gold2, silver) %>%
+
+    ggplot(aes(x = date, y = value, color = probe, group = probe)) +
+
+        # Set up the colors and legend
+        scale_color_manual(values = c("gold", "darkgoldenrod", "gray60"), name = "Probe", 
+            labels = c("Gold #1", "Gold #2", "Silver")) +
+    
+        geom_line(size = 1.2) +
+    
+        xlab("Time") +
+        ylab("Soil Probe Value") + 
+    
+        # Add theme
+        ggplot.theme + 
+    
+        # Change legend position
+        theme(legend.position = c(0.14, 0.85))
+    
+
+```
+
+A graph of the calibration and formula using the quadratic model
+
+```{r 'Soil_quad_calibration', echo = F}
+
+cal %>%
+    
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+
+    ggplot(aes(x = gold2, y = vwc)) +
+    
+        # Add points
+        geom_point() + 
+    
+        # Add linear model
+        geom_smooth(method = "lm", color = "red", se = F, 
+            formula = y ~ poly(x, 2, raw = T)) + 
+    
+        # Add the equation
+        stat_poly_eq(aes(label = ..eq.label..),
+               eq.x.rhs = "italic(x)", coef.digits = 2, label.x = 16600, 
+               label.y = 0.30, parse = T, size = 7,
+               formula = y ~ poly(x, 2, raw = T)) +
+        
+        # Add the R^2
+        stat_poly_eq(aes(label = ..rr.label..),
+               coef.digits = 2, label.x = 16600, label.y = 0.28,
+               parse = T, size = 7, formula = y ~ poly(x, 2, raw = T)) +
+    
+        # Add axis labels
+        xlab("Soil Probe Value") + 
+        ylab(bquote(bold('Actual VWC'~(m^3/m^3)))) +
+    
+        # Add theme
+        ggplot.theme
+    
+
+```
+
+Graph showing the predicted values of VWC from the quadratic model graphed against the actual VWC
+
+```{r 'Soil_predict_comparison', echo = F}
+
+# Plot all the EMU probes vs actual VWC
+cal %>%
+    
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+    
+    # Gather all the probes together
+    gather(probe, value, gold1_vwc, gold2_vwc, silver_vwc) %>%
+    
+    arrange(desc(probe)) %>%
+
+    # Make the plot
+    ggplot(aes(x = vwc, y = value, color = probe)) +
+    
+        # Add a line with a slope of 1 and intercept of 0
+        geom_abline(intercept = 0, slope = 1) + 
+    
+        # Add points
+        geom_point() +
+    
+        # Set up the colors and legend
+        scale_color_manual(values = c("gold", "darkgoldenrod", "gray60"), name = "Probe", 
+            labels = c("Gold #1", "Gold #2", "Silver")) +
+    
+        # Add axis labels
+        xlab(bquote(bold('Actual VWC'~(m^3/m^3)))) +
+        ylab(bquote(bold('Predicted Probe VWC'~(m^3/m^3)))) + 
+    
+    
+        # Add theme
+        ggplot.theme + 
+    
+        # Change legend position
+        theme(legend.position = c(0.14, 0.85))
+ 
+
+```
+
+Comparison of predicted values of VWC from the EMU sensors and VWC from the Hobo Microstation compared to actual VWC
+
+```{r 'Soil_sensor_comparison', echo = F}
+
+# Plot hobo and emu vs actual VWC
+cal %>%
+    
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+    
+    # Gather just the gold2 probe and hobo together
+    gather(probe, value, gold2_vwc, hobo_vwc) %>%
+
+    # Make the plot
+    ggplot(aes(x = vwc, y = value, color = probe)) +
+    
+        # Add a line with a slope of 1 and intercept of 0
+        geom_abline(intercept = 0, slope = 1) + 
+    
+        # Add points
+        geom_point() +
+    
+        # Change the graph colors
+        scale_color_manual(values = c("black", "blue"), name = "Sensor", 
+            labels = c("EMU (calibrated)", "Hobo Microstation")) +
+    
+        # Add axis labels
+        xlab(bquote(bold('Actual VWC'~(m^3/m^3)))) +
+        ylab(bquote(bold('Sensor VWC'~(m^3/m^3)))) + 
+    
+        # Add theme
+        ggplot.theme + 
+    
+        # Change legend position
+        theme(legend.position = c(0.22, 0.88))
+ 
+
+```
