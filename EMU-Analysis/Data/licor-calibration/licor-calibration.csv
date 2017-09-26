@@ -1,0 +1,111 @@
+pg,#,date,conditions,light,umol,lux,notes
+1,1,2017-09-26,sunny,sun,1673,91291,
+1,2,2017-09-26,sunny,sun,1698,92953,
+1,3,2017-09-26,sunny,sun,1291,71680,partial clouds
+1,4,2017-09-26,sunny,sun,1702,92289,
+1,5,2017-09-26,sunny,sun,2005,120370,
+1,6,2017-09-26,sunny,sun,2004,120494,
+1,7,2017-09-26,sunny,sun,2006,121546,
+1,8,2017-09-26,sunny,sun,1955,115443,
+1,9,2017-09-26,sunny,sun,1990,118476,
+1,10,2017-09-26,sunny,sun,1981,119307,
+1,11,2017-09-26,sunny,sun,2000,120488,
+1,12,2017-09-26,sunny,sun,1970,117851,
+1,13,2017-09-26,sunny,sun,1866,108886,
+1,14,2017-09-26,sunny,sun,1775,100195,
+1,15,2017-09-26,sunny,sun,1740,97762,
+1,16,2017-09-26,sunny,sun,1820,105963,
+1,17,2017-09-26,sunny,sun,1846,108816,
+1,18,2017-09-26,sunny,sun,1880,112605,
+1,19,2017-09-26,sunny,sun,1788,104791,
+1,20,2017-09-26,sunny,sun,1745,101165,
+1,21,2017-09-26,sunny,sun,1721,99319,
+1,22,2017-09-26,sunny,sun,1646,94270,
+1,23,2017-09-26,sunny,sun,1666,95328,
+1,24,2017-09-26,sunny,sun,1611,90203,
+1,25,2017-09-26,sunny,sun,1644,93642,
+1,26,2017-09-26,sunny,sun,1588,88007,
+1,27,2017-09-26,sunny,sun,1550,85224,
+1,28,2017-09-26,sunny,sun,1530,84391,
+1,29,2017-09-26,sunny,sun,1511,81795,
+1,30,2017-09-26,sunny,sun,1486,80075,
+1,31,2017-09-26,sunny,sun,1461,79630,
+1,32,2017-09-26,sunny,sun,1422,75086,
+1,33,2017-09-26,sunny,sun,1434,78708,
+1,34,2017-09-26,sunny,sun,1411,75240,
+1,35,2017-09-26,sunny,sun,1309,76162,
+1,36,2017-09-26,sunny,sun,1287,76725,
+1,37,2017-09-26,sunny,sun,1353,73997,
+1,38,2017-09-26,sunny,sun,1301,73087,
+1,39,2017-09-26,sunny,sun,1253,72921,
+1,40,2017-09-26,sunny,sun,1070,62877,
+1,41,2017-09-26,sunny,sun,1118,69085,
+1,42,2017-09-26,sunny,sun,1182,73496,
+1,43,2017-09-26,sunny,sun,939,63154,
+1,44,2017-09-26,sunny,sun,1048,64203,
+1,45,2017-09-26,sunny,sun,1053,58693,
+1,46,2017-09-26,sunny,sun,1080,64470,
+1,47,2017-09-26,sunny,sun,1163,62486,
+1,48,2017-09-26,sunny,sun,1125,59321,
+1,49,2017-09-26,sunny,sun,1155,61061,partial clouds
+1,50,2017-09-26,sunny,sun,1295,78098,
+1,51,2017-09-26,sunny,sun,1260,68783,
+1,52,2017-09-26,sunny,sun,1220,66882,
+1,53,2017-09-26,sunny,sun,1251,71439,
+1,54,2017-09-26,sunny,sun,910,46202,partial clouds
+1,55,2017-09-26,sunny,sun,940,48810,partial clouds
+1,56,2017-09-26,sunny,sun,977,52900,partial clouds
+1,57,2017-09-26,sunny,sun,797,43858,partial clouds
+1,58,2017-09-26,sunny,sun,812,44414,partial clouds
+1,59,2017-09-26,sunny,sun,708,40454,partial clouds
+1,60,2017-09-26,sunny,sun,751,43639,partial clouds
+1,61,2017-09-26,sunny,sun,640,36965,partial clouds
+1,62,2017-09-26,sunny,sun,569,32106,partial clouds
+1,63,2017-09-26,sunny,sun,535,29756,partial clouds
+1,64,2017-09-26,sunny,sun,501,27236,partial clouds
+1,65,2017-09-26,sunny,sun,483,25860,partial clouds
+1,66,2017-09-26,sunny,sun,576,32951,partial clouds
+1,67,2017-09-26,sunny,sun,434,23111,partial clouds
+1,68,2017-09-26,sunny,sun,419,21909,partial clouds
+1,69,2017-09-26,sunny,sun,401,26055,partial clouds
+1,70,2017-09-26,sunny,sun,709,39868,partial clouds
+1,71,2017-09-26,sunny,sun,815,45985,partial clouds
+1,72,2017-09-26,sunny,sun,916,52080,partial clouds
+1,73,2017-09-26,sunny,sun,847,47725,partial clouds
+1,74,2017-09-26,sunny,sun,816,44639,partial clouds
+1,75,2017-09-26,sunny,sun,898,48556,partial clouds
+1,76,2017-09-26,sunny,sun,850,42556,partial clouds
+1,77,2017-09-26,sunny,sun,826,41101,partial clouds
+1,78,2017-09-26,sunny,sun,835,42876,partial clouds
+1,79,2017-09-26,sunny,sun,668,31731,partial clouds
+1,80,2017-09-26,sunny,sun,690,30883,partial clouds
+2,1,2017-09-26,sunny,sun,630,27567,partial clouds
+2,2,2017-09-26,sunny,sun,612,26884,partial clouds
+2,3,2017-09-26,sunny,shade,186,7068,
+2,4,2017-09-26,sunny,shade,175,7488,
+2,5,2017-09-26,sunny,shade,160,7137,
+2,6,2017-09-26,sunny,shade,144,6401,
+2,7,2017-09-26,sunny,shade,194,9276,
+2,8,2017-09-26,sunny,shade,220,10482,
+2,9,2017-09-26,sunny,sun,368,15714,partial clouds
+2,10,2017-09-26,sunny,sun,394,17230,partial clouds
+2,11,2017-09-26,sunny,sun,439,19964,partial clouds
+2,12,2017-09-26,sunny,sun,324,14047,partial clouds
+2,13,2017-09-26,sunny,sun,288,12259,partial clouds
+2,14,2017-09-26,sunny,sun,265,11148,partial clouds
+2,15,2017-09-26,sunny,sun,236,10113,partial clouds
+2,16,2017-09-26,sunny,sun,322,15469,partial clouds
+2,17,2017-09-26,sunny,sun,340,18415,partial clouds
+2,18,2017-09-26,sunny,sun,312,17124,partial clouds
+2,19,2017-09-26,sunny,shade,118,5427,
+2,20,2017-09-26,sunny,shade,100,4589,
+2,21,2017-09-26,sunny,shade,94,4303,
+2,22,2017-09-26,sunny,shade,89,4010,
+2,23,2017-09-26,sunny,shade,69,3214,
+2,24,2017-09-26,sunny,shade,55,2586,
+2,25,2017-09-26,sunny,shade,41,1918,
+2,26,2017-09-26,sunny,shade,27,1195,
+2,27,2017-09-26,sunny,shade,20,718,
+2,28,2017-09-26,sunny,shade,13,447,
+2,29,2017-09-26,sunny,shade,10,325,
+2,30,2017-09-26,sunny,shade,130,5774,
