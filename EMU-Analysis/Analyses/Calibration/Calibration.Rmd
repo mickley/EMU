@@ -130,8 +130,8 @@ summary(light.quad)
 names(light.quad$coefficients)[1] <- "intercept"
 
 # Write the calibration coefficients to a CSV
-write.csv(data.frame(as.list(light.quad$coefficients)), "light-calibration.csv", 
-    row.names = F)
+write.csv(data.frame(as.list(light.quad$coefficients)),
+    "Analyses/Calibration/light-calibration.csv", row.names = F)
 
 ```
 
@@ -458,8 +458,8 @@ summary(gold.quad.2)
 names(gold.quad.2$coefficients)[1] <- "intercept"
 
 # Write the calibration coefficients to a CSV
-write.csv(data.frame(as.list(gold.quad.2$coefficients)), "soil-calibration.csv", 
-    row.names = F)
+write.csv(data.frame(as.list(gold.quad.2$coefficients)),
+    "Analyses/Calibration/soil-calibration.csv", row.names = F)
 
 
 ```
