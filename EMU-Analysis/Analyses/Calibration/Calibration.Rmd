@@ -126,6 +126,13 @@ light.quad <- light %>%
 # Show summary
 summary(light.quad)
 
+# Rename the intercept coefficient
+names(light.quad$coefficients)[1] <- "intercept"
+
+# Write the calibration coefficients to a CSV
+write.csv(data.frame(as.list(light.quad$coefficients)), "light-calibration.csv", 
+    row.names = F)
+
 ```
 
 
@@ -445,6 +452,14 @@ gold.quad.2 <- cal %>%
  
 # View the model
 summary(gold.quad.2)
+
+
+# Rename the intercept coefficient
+names(gold.quad.2$coefficients)[1] <- "intercept"
+
+# Write the calibration coefficients to a CSV
+write.csv(data.frame(as.list(gold.quad.2$coefficients)), "soil-calibration.csv", 
+    row.names = F)
 
 
 ```
