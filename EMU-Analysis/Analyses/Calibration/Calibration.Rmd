@@ -455,7 +455,7 @@ summary(gold.quad.2)
 
 
 # Rename the intercept coefficient
-names(gold.quad.2$coefficients)[1] <- "intercept"
+names(gold.quad.2$coefficients) <- c("intercept", "soil", "soil.squared")
 
 # Write the calibration coefficients to a CSV
 write.csv(data.frame(as.list(gold.quad.2$coefficients)),

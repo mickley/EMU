@@ -13,6 +13,12 @@ require(dplyr)
 require(lubridate)
 
 
+#### Light & Soil Calibration Data ####
+
+soil.cal <- read.csv("Analyses/Calibration/soil-calibration.csv")
+light.cal <- read.csv("Analyses/Calibration/light-calibration.csv")
+
+
 #### iButton Data ####
     
 # Data folder
@@ -144,10 +150,14 @@ pendant <- pendant %>%
 
 
 ##### Combine Datasets & Wrangle #####
-
+soilint = soil.cal$intercept
+soilint
 
 # Manipulate the data
-data <- emu %>%
+data <- 
+    
+    
+    emu %>%
     
     # Add source column
     mutate(source = "EMU", type = NA) %>%
@@ -168,13 +178,14 @@ data <- emu %>%
         humidity = replace(humidity, humidity == -100, NA), 
         light = replace(light, light == -100, NA), 
         soil = replace(soil, soil == -100, NA)) %>%
-    
-    # Add vwc based on good sand calibration
-    mutate(vwc = 6.552253e-01 + -4.955260e-05 * soil + 
-        9.539485e-10 * soil ^ 2) %>%
 
-    # Add par based on LiCor calibration
-    mutate(par = 0.01405 * light + 33.4) %>%
+    # Add vwc based on fenton soil calibration
+    mutate(vwc = soil.cal$intercept + soil.cal$soil * soil + 
+        soil.cal$soil.squared * (soil ^ 2)) %>%
+
+    # Add par based on LiCor light calibration
+    mutate(par = light.cal$intercept + light.cal$lux * light + 
+        light.cal$lux.squared * (light ^ 2)) %>%
 
     # Add iButton data
     bind_rows(ibuttons, micro, pendant) %>%
