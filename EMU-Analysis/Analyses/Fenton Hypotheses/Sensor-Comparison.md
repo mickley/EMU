@@ -1,4 +1,4 @@
-# Comparison Among different Sensor Types
+# Comparison Among Sensor Types
 James Mickley  
 
 
@@ -20,7 +20,11 @@ This analysis compares the results for the EMU, Hobo Pendant, Hobo Microstation,
 Differences in temperature between EMUs and Hobos at all positions, and between EMUs and iButtons at the first position of each transect
 
 
-![](Sensor-Comparison_files/figure-html/Temp_Diff-1.png)<!-- -->
+![](Sensor-Comparison_files/figure-html/Temp_Diff_Hobo-1.png)<!-- -->
+
+
+
+![](Sensor-Comparison_files/figure-html/Temp_Diff_iButton-1.png)<!-- -->
 
 
 ### Humidity
@@ -29,9 +33,6 @@ Differences in humidity between EMUs and iButtons at the first position of each 
 
 
 ![](Sensor-Comparison_files/figure-html/Humid_Diff-1.png)<!-- -->
-
-
-
 
 
 ### PAR
@@ -51,12 +52,16 @@ Differences in Volumetric Water Content between EMUs and Hobo Microstations at t
 
 ![](Sensor-Comparison_files/figure-html/VWC_Diff-1.png)<!-- -->
 
-## Comparisons between EMU & iButton/Hobo Pendant
+## Comparisons between EMU & iButton/Hobo Pendant for Woods transect
 
 The Hobo Pendant reads slightly high on temperature
 
 
-![](Sensor-Comparison_files/figure-html/Temp_Comp-1.png)<!-- -->
+![](Sensor-Comparison_files/figure-html/Temp_Comp_Hobo-1.png)<!-- -->
+
+
+![](Sensor-Comparison_files/figure-html/Temp_Comp_iButton-1.png)<!-- -->
+
 
 
 ### Humidity
@@ -77,5 +82,14 @@ The iButtons have slightly higher humidity (3-5% or so).  They also can return v
 
 
 ![](Sensor-Comparison_files/figure-html/VWC_Comp-1.png)<!-- -->
+
+
+
+
+
+
+
+
+
 
 
