@@ -315,3 +315,41 @@ Graph showing the predicted values of VWC from the quadratic model graphed again
 Comparison of predicted values of VWC from the EMU sensors and VWC from the Hobo Microstation compared to actual VWC
 
 ![](Calibration_files/figure-html/Soil_sensor_comparison-1.png)<!-- -->
+
+
+### Session Information
+
+
+```
+R version 3.4.0 (2017-04-21)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: OS X El Capitan 10.11.6
+
+Matrix products: default
+BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats4    stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+[1] bindrcpp_0.2   dplyr_0.7.1    tidyr_0.6.3    bbmle_1.0.19  
+[5] ggpmisc_0.2.15 cowplot_0.7.0  ggplot2_2.2.1 
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_0.12.11      bindr_0.1         knitr_1.16       
+ [4] magrittr_1.5      munsell_0.4.3     lattice_0.20-35  
+ [7] colorspace_1.3-2  R6_2.2.2          rlang_0.1.1      
+[10] stringr_1.2.0     plyr_1.8.4        tools_3.4.0      
+[13] grid_3.4.0        gtable_0.2.0      htmltools_0.3.6  
+[16] assertthat_0.2.0  yaml_2.1.14       lazyeval_0.2.0   
+[19] rprojroot_1.2     digest_0.6.12     tibble_1.3.3     
+[22] numDeriv_2016.8-1 codetools_0.2-15  glue_1.1.1       
+[25] evaluate_0.10     rmarkdown_1.6     stringi_1.1.5    
+[28] compiler_3.4.0    scales_0.4.1      backports_1.1.0  
+[31] pkgconfig_2.0.1  
+```

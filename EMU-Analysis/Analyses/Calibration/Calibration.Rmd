@@ -687,3 +687,14 @@ cal %>%
  
 
 ```
+
+
+### Session Information
+
+```{r 'Session_Info', echo = F, comment = ""}
+
+# Add session information to help with reproduceability
+sessionInfo()
+
+
+```
