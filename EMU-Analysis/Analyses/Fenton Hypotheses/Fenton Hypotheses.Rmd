@@ -54,6 +54,7 @@ require(tidyr) # Needed for data wrangling
 require(lubridate) # Needed for date wrangling
 require(knitr) # Needed to print tables to markdown
 require(dplyr) # Needed for data wrangling, load last to avoid conflicts
+require(mgcv) # Needed for gams
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@ Data Preparation
@@ -350,7 +351,7 @@ missing.data %>%
 ## Main Hypotheses
 
 
-```{r 'Hourly_Differences', echo = F}
+```{r 'Hourly_Differences1', echo = F}
 
 # Take the long dataset
 diff.long %>%
@@ -392,7 +393,7 @@ diff.long %>%
 ```
 
 
-```{r 'Hourly_Differences', echo = F}
+```{r 'Hourly_Differences2', echo = F}
 library(mgcv)
 
 # Tim's attempt
@@ -459,7 +460,7 @@ ggplot()+
 ```
 
 
-```{r 'Hourly_Differences', echo = F}
+```{r 'Hourly_Differences3', echo = F}
 # calculate gamms for differences TEMPERATURE
 head(diff)
 # create fenton dataframe that excludes NAs for temperature
@@ -515,7 +516,7 @@ ggplot()+
 
 ```
 
-```{r 'Hourly_Differences', echo = F}
+```{r 'Hourly_Differences4', echo = F}
 # calculate gamms for differences of HUMIDITY
 head(diff)
 # create fenton dataframe that excludes NAs for temperature
@@ -571,7 +572,7 @@ ggplot()+
 
 ```
 
-```{r 'Hourly_Differences', echo = F}
+```{r 'Hourly_Differences5', echo = F}
 # calculate gamms for differences of LIGHT
 head(diff)
 # create fenton dataframe that excludes NAs for temperature
@@ -709,3 +710,13 @@ diff %>%
 
 ```
 
+
+### Session Information
+
+```{r 'Session_Info', echo = F, comment = ""}
+
+# Add session information to help with reproduceability
+sessionInfo()
+
+
+```
