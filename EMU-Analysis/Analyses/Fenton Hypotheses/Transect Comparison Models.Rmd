@@ -1,0 +1,670 @@
+---
+title: "Transect Comparison"
+author: "James Mickley"
+output:
+  html_document:
+    keep_md: yes
+    theme: readable
+  html_notebook:
+    theme: readable
+graphics: yes
+---
+
+```{r setup, include = F}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Knitr Options
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Set root directory to the project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+
+# Set default knitr options: 
+# Suppress warnings and messages, cache chunks, 
+#  set default figure size to 6x8 at 300 dpi, and save a png and pdf
+knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
+    fig.height = 6, fig.width = 8, dpi = 300, # 6x8" @ 300dpi:1800x2400=4.3MP
+    dev = c('png', 'pdf'), dev.args = list(pdf = list(onefile = F)))
+
+```
+
+
+
+## Overview
+
+This analysis is looking for microenvironmental differences or gradients between transects.  It's a more involved version of the [Paired T-Test analysis](Paired-T-tests.md).
+
+We're using this [GAM approach](http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/).  In this approach, there are two smoothers (as Robi suggested).  One smoother is a cubic spline that accounts for intra-day variation.  Then a second spline is fitted to account for temporal variation that is not intra-day.  
+
+Readings have temporal autocorrelation, therefore, we add an autoregressive moving average correlation structure (corAR1). We set the form here to account for autocorrelation separately for each transect position, treating positions and transects as independent.  In every case, accounting for autocorrelation improves the models considerably, however, significant autocorrelation is still unaccounted for.  Zuur et. al. say that it's usually not worth finding the optimal autocorrelation structure.  
+
+After all temporal effects are accounted for, we test our expectations:
+
+1. The temperature should be lower in the woods
+2. The humidity should be higher in the woods
+3. The light levels should be lower in the woods
+4. The soil in the meadow should be wetter than the woods
+
+*Nota bene*: I've left out the first position in the meadow transect for temperature and humidity.  This BME280 failed and gave suspect values for much of the time.  
+
+
+```{r 'Main_Code', include = F, cache = F}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Setup - This code is run, but output is hidden
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Load Packages
+require(cowplot) # Needed for publication-quality ggplots
+require(tidyr) # Needed for data wrangling
+require(lubridate) # Needed for date wrangling
+require(mgcv) # Needed for gams
+require(bbmle) # Needed for AICc
+#require(forecast) # Needed for auto.arima(), find optimal ARMA structure
+require(dplyr) # Needed for data wrangling, load last to avoid conflicts
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Data Preparation
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Import datasets
+data <- read.csv("Data/EMU-6-21/fentondata-all.csv")
+
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ ggPlot Theme
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+ggplot.theme <- theme(
+    
+    # Text size for axis ticks
+    axis.text.y = element_text(size = 14),
+    axis.text.x = element_text(size = 14),
+    
+    # Text size for axis labels
+    # Also move them away from the axes a bit for more space
+    axis.title.x = element_text(size = 18, face = "bold", vjust = -1),
+    axis.title.y = element_text(size = 18, face = "bold", vjust = 1.5),
+    
+    # Plot title size
+    plot.title = element_text(size = 20, face = "bold"),
+    
+    # Margins for top, right, bottom, left
+    plot.margin = grid::unit(c(1.5, 1.5, 1.5, 1.2), "lines"), 
+    
+    # Legend text size
+    legend.text = element_text(size = 14),
+    legend.text.align = 0, 
+    legend.title = element_text(size = 16, face = "bold"),
+    legend.key.size = grid::unit(1.4, "line"),
+    legend.key = element_blank()
+    )
+
+
+```
+
+
+
+```{r 'Data_Wrangling', echo = F, include = F}
+
+
+# Data wrangling on the main dataset
+fenton <- data %>%
+    
+    # Convert the timestamp to a date/time object
+    mutate(timestamp = as.POSIXct(timestamp)) %>%
+    
+    # Remove the seconds from the time, leaving only hour/minute
+    mutate(timestamp = timestamp - second(timestamp)) %>%
+    
+    # Make a column combining transect and order
+    unite(t.order, transect, order, sep = "", remove = F)
+
+# Take a look at the structure of the main dataset
+#str(fenton)
+
+
+#### Temperature #####
+
+
+# Make a dataset for the EMU temperatures
+temp.data <- fenton %>%
+
+    # Filter only EMU data with a temperature, excluding Meadow #1
+    filter(source == "EMU", !is.na(temperature), 
+           !(order == 1 & transect == "Meadow"))
+
+#### Humidity #####
+
+
+# Make a dataset for the meadow EMU humidity
+humid.data <- fenton %>%
+
+    # Filter only EMU data with a humidity, excluding Meadow #1
+    filter(source == "EMU", !is.na(humidity), humidity > 0, 
+           !(order == 1 & transect == "Meadow"))
+
+#### VWC #####
+
+
+# Make a dataset for the EMU vwc
+vwc.data <- fenton %>%
+
+    # Filter only EMU data with a vwc
+    filter(source == "EMU", !is.na(vwc))
+
+#### PAR #####
+
+
+# Make a dataset for the EMU par
+par.data <- fenton %>%
+
+    # Filter only EMU data with a par
+    filter(source == "EMU", !is.na(par))
+
+
+#### Darkness Hours #####
+
+# Figure out hours for darkness
+darkness <- data.frame(dusk = seq(from = 8, to = 528, by = 24), 
+    dawn = seq(from = 17, to = 528, by = 24))
+
+
+
+```
+
+
+## Temperature
+
+The model that includes transect is better than the base temporal model for temperature.
+
+After accounting for temporal variation, and autocorrelation, the woods is 1.96 ºC cooler than the meadow.  This is close to the paired t-test result: 1.83 ºC cooler.
+
+
+```{r 'Temp_Comp', echo = F}
+
+# Construct an uncorrelated gam with the two smoothers
+temp.uncorr <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute), data = temp.data)
+
+##### Autocorrelation #####
+
+# Set graphs to 1 row x 2 columns
+layout(matrix(1:2, ncol = 2))
+
+# plot of autocorrelation in variances
+acf(resid(temp.uncorr$lme), lag.max = 96, main = "ACF")
+pacf(resid(temp.uncorr$lme), lag.max = 96, main = "pACF")
+
+# Reset the layout
+layout(1)
+
+# Find the optimal ARMA
+#auto.arima(resid(temp.uncorr$lme, type = "normalized"), 
+#    stationary = TRUE, seasonal = FALSE)
+
+# ARMA Coefficients (non negative, default = 0)
+# p = autoregressive order
+# q = moving average order
+
+# p = 1, q = 0 (AR1), grouped by order and transect
+temp.ar1 <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute), data = temp.data,
+    correlation = corAR1(form = ~ 1|t.order))
+
+# Compare models
+AICctab(temp.uncorr$lme, temp.ar1$lme, nobs = nrow(temp.data))
+
+# Look at the ar1 model
+# Note that the 1st phi coefficient is nearly one
+# Zuur says this "may indicate a more serious problem of the residuals being 
+# non-stationary (non-constant mean or variance)"
+# Also, a more complicated sinusoidal error structure may be more appropriate
+# (ie + correlations near, but - correlations farther away (day vs night))
+#summary(temp.ar1$lme)
+summary(temp.ar1$gam)
+
+# Set graphs to 1 row x 2 columns
+#layout(matrix(1:2, ncol = 2))
+
+# plot of autocorrelation in variances
+#acf(resid(temp.ar1$lme), lag.max = 96, main = "ACF")
+#pacf(resid(temp.ar1$lme), lag.max = 96, main = "pACF")
+
+# Reset the layout
+#layout(1)
+
+# Plot residuals over time
+plot(temp.ar1$lme, resid(.) ~ minute)
+
+
+##### Model Temporal Fit #####
+
+# Set graphs to 1 row x 2 columns
+layout(matrix(1:2, ncol = 2))
+
+# Plot the two smoothers
+plot(temp.ar1$gam, shade = T, residuals = T, main = "Temperature")
+
+# Reset the layout
+layout(1)
+
+# Add predicted values to the dataset
+cbind(temp.data, predict(temp.ar1$gam, se.fit = T)) %>%
+    
+    # Plot the observed and predicted values
+    ggplot(aes(x = hour)) +
+    
+        # Add rectangles for darkness
+        geom_rect(data = darkness, aes(xmin = dusk, xmax = dawn, 
+            ymin = -2.5, ymax = 50, x = NULL, y = NULL, color = NULL), 
+            fill = "grey85", show.legend = F) + 
+    
+        # Add observed points
+        geom_point(aes(y = temperature)) + 
+    
+        # Add confidence intervals
+        geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
+            ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
+    
+        # Add prediction line
+        geom_line(aes(y = fit), color = "red") + 
+    
+        # Add axis labels
+        xlab("Hour") + ylab("Temperature (ºC)") + 
+    
+        # Add theme
+        ggplot.theme
+
+
+##### Transect Order #####
+
+# Fit a model with transect
+temp.ar1.transect <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute) + transect, 
+    data = temp.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Test whether there are differences in temperature between transects
+AICctab(temp.uncorr$lme, temp.ar1$lme, temp.ar1.transect$lme, 
+    nobs = nrow(temp.data))
+
+# Show the lme summary for the transect order
+summary(temp.ar1.transect$lme)
+
+
+```
+
+
+## Humidity
+
+The model that includes transect is better than the base temporal model for humidity.
+
+After accounting for temporal variation, and autocorrelation, the woods is 4.23% more humid than the meadow.  This is close to the paired t-test result: 3.4% more humid.
+
+
+```{r 'Humid_Comp', echo = F}
+
+# Construct an uncorrelated gam with the two smoothers
+humid.uncorr <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute), data = humid.data)
+
+##### Autocorrelation #####
+
+# Set graphs to 1 row x 2 columns
+layout(matrix(1:2, ncol = 2))
+
+# plot of autocorrelation in variances
+acf(resid(humid.uncorr$lme), lag.max = 96, main = "ACF")
+pacf(resid(humid.uncorr$lme), lag.max = 96, main = "pACF")
+
+# Reset the layout
+layout(1)
+
+# Find the optimal ARMA
+#auto.arima(resid(humid.uncorr$lme, type = "normalized"), 
+#    stationary = TRUE, seasonal = FALSE)
+
+# ARMA Coefficients (non negative, default = 0)
+# p = autoregressive order
+# q = moving average order
+
+# p = 1, q = 0 (AR1), grouped by order and transect
+humid.ar1 <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute), data = humid.data,
+    correlation = corAR1(form = ~ 1|t.order))
+
+# Compare models
+AICctab(humid.uncorr$lme, humid.ar1$lme, nobs = nrow(humid.data))
+
+# Look at the ar1 model
+# Note that the 1st phi coefficient is nearly one
+# Zuur says this "may indicate a more serious problem of the residuals being 
+# non-stationary (non-constant mean or variance)"
+# Also, a more complicated sinusoidal error structure may be more appropriate
+# (ie + correlations near, but - correlations farther away (day vs night))
+#summary(humid.ar1$lme)
+summary(humid.ar1$gam)
+
+# Set graphs to 1 row x 2 columns
+#layout(matrix(1:2, ncol = 2))
+
+# plot of autocorrelation in variances
+#acf(resid(humid.ar1$lme), lag.max = 96, main = "ACF")
+#pacf(resid(humid.ar1$lme), lag.max = 96, main = "pACF")
+
+# Reset the layout
+#layout(1)
+
+# Plot residuals over time
+plot(humid.ar1$lme, resid(.) ~ minute)
+
+
+##### Model Temporal Fit #####
+
+# Set graphs to 1 row x 2 columns
+layout(matrix(1:2, ncol = 2))
+
+# Plot the two smoothers
+plot(humid.ar1$gam, shade = T, residuals = T, main = "Humidity")
+
+# Reset the layout
+layout(1)
+
+# Add predicted values to the dataset
+cbind(humid.data, predict(humid.ar1$gam, se.fit = T)) %>%
+    
+    # Plot the observed and predicted values
+    ggplot(aes(x = hour)) +
+    
+        # Add rectangles for darkness
+        geom_rect(data = darkness, aes(xmin = dusk, xmax = dawn, 
+            ymin = 16, ymax = 118, x = NULL, y = NULL, color = NULL), 
+            fill = "grey85", show.legend = F) + 
+    
+        # Add observed points
+        geom_point(aes(y = humidity)) + 
+    
+        # Add confidence intervals
+        geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
+            ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
+    
+        # Add prediction line
+        geom_line(aes(y = fit), color = "red") + 
+    
+        # Add axis labels
+        xlab("Hour") + ylab("Relative Humidity (%)") + 
+    
+        # Add theme
+        ggplot.theme
+
+
+##### Transect Order #####
+
+# Fit a model with transect
+humid.ar1.transect <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute) + transect, 
+    data = humid.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Test whether there are differences in humidity between transects
+AICctab(humid.uncorr$lme, humid.ar1$lme, humid.ar1.transect$lme, 
+    nobs = nrow(humid.data))
+
+# Show the lme summary for the transect order
+summary(humid.ar1.transect$lme)
+
+
+```
+
+
+## VWC
+
+The model that includes transect is better than the base temporal model for VWC.
+
+After accounting for temporal variation, and autocorrelation, the woods is drier than the meadow by 0.14 m<sup>3</sup>/m<sup>3</sup>.  This is close to the paired t-test result: 0.19 m<sup>3</sup>/m<sup>3</sup>.
+
+
+```{r 'VWC_Comp', echo = F}
+
+# Construct an uncorrelated gam with the two smoothers
+vwc.uncorr <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute), data = vwc.data)
+
+##### Autocorrelation #####
+
+# Set graphs to 1 row x 2 columns
+layout(matrix(1:2, ncol = 2))
+
+# plot of autocorrelation in variances
+acf(resid(vwc.uncorr$lme), lag.max = 96, main = "ACF")
+pacf(resid(vwc.uncorr$lme), lag.max = 96, main = "pACF")
+
+# Reset the layout
+layout(1)
+
+# Find the optimal ARMA
+#auto.arima(resid(vwc.uncorr$lme, type = "normalized"), 
+#    stationary = TRUE, seasonal = FALSE)
+
+# ARMA Coefficients (non negative, default = 0)
+# p = autoregressive order
+# q = moving average order
+
+# p = 1, q = 0 (AR1), grouped by order and transect
+vwc.ar1 <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute), data = vwc.data,
+    correlation = corAR1(form = ~ 1|t.order))
+
+# Compare models
+AICctab(vwc.uncorr$lme, vwc.ar1$lme, nobs = nrow(vwc.data))
+
+# Look at the ar1 model
+# Note that the 1st phi coefficient is nearly one
+# Zuur says this "may indicate a more serious problem of the residuals being 
+# non-stationary (non-constant mean or variance)"
+# Also, a more complicated sinusoidal error structure may be more appropriate
+# (ie + correlations near, but - correlations farther away (day vs night))
+#summary(m.vwc.ar1$lme)
+summary(vwc.ar1$gam)
+
+# Set graphs to 1 row x 2 columns
+#layout(matrix(1:2, ncol = 2))
+
+# plot of autocorrelation in variances
+#acf(resid(vwc.ar1$lme), lag.max = 96, main = "ACF")
+#pacf(resid(vwc.ar1$lme), lag.max = 96, main = "pACF")
+
+# Reset the layout
+#layout(1)
+
+# Plot residuals over time
+plot(vwc.ar1$lme, resid(.) ~ minute)
+
+
+##### Model Temporal Fit #####
+
+# Set graphs to 1 row x 2 columns
+layout(matrix(1:2, ncol = 2))
+
+# Plot the two smoothers
+plot(vwc.ar1$gam, shade = T, residuals = T, main = "vwc")
+
+# Reset the layout
+layout(1)
+
+# Add predicted values to the dataset
+cbind(vwc.data, predict(vwc.ar1$gam, se.fit = T)) %>%
+    
+    # Plot the observed and predicted values
+    ggplot(aes(x = hour)) +
+    
+        # Add rectangles for darkness
+        geom_rect(data = darkness, aes(xmin = dusk, xmax = dawn, 
+            ymin = 0.05, ymax = 0.35, x = NULL, y = NULL, color = NULL), 
+            fill = "grey85", show.legend = F) +
+    
+        # Add observed points
+        geom_point(aes(y = vwc)) + 
+    
+        # Add confidence intervals
+        geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
+            ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
+    
+        # Add prediction line
+        geom_line(aes(y = fit), color = "red") + 
+    
+        # Add axis labels
+        xlab("Hour") + ylab("VWC") + 
+    
+        # Add theme
+        ggplot.theme
+
+
+##### Transect Order #####
+
+# Fit a model with transect
+vwc.ar1.transect <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute) + transect, 
+    data = vwc.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Test whether there are differences in vwc between transects
+AICctab(vwc.uncorr$lme, vwc.ar1$lme, vwc.ar1.transect$lme, 
+    nobs = nrow(vwc.data))
+
+# Show the lme summary for the transect order
+summary(vwc.ar1.transect$lme)
+
+
+```
+
+
+## PAR
+
+The model that includes transect is better than the base temporal model for PAR.
+
+After accounting for temporal variation, and autocorrelation, the woods gets 300.7 µmol/m<sup>2</sup>/s less light than the meadow.  This is close to the paired t-test result: 243 µmol/m<sup>2</sup>/s less light.
+
+
+```{r 'PAR_Comp', echo = F}
+
+# Construct an uncorrelated gam with the two smoothers
+par.uncorr <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute), data = par.data)
+
+##### Autocorrelation #####
+
+# Set graphs to 1 row x 2 columns
+layout(matrix(1:2, ncol = 2))
+
+# plot of autocorrelation in variances
+acf(resid(par.uncorr$lme), lag.max = 96, main = "ACF")
+pacf(resid(par.uncorr$lme), lag.max = 96, main = "pACF")
+
+# Reset the layout
+layout(1)
+
+# Find the optimal ARMA
+#auto.arima(resid(par.uncorr$lme, type = "normalized"), 
+#    stationary = TRUE, seasonal = FALSE)
+
+# ARMA Coefficients (non negative, default = 0)
+# p = autoregressive order
+# q = moving average order
+
+# p = 1, q = 0 (AR1), grouped by order and transect
+par.ar1 <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute), data = par.data,
+    correlation = corAR1(form = ~ 1|t.order))
+
+# Compare models
+AICctab(par.uncorr$lme, par.ar1$lme, nobs = nrow(par.data))
+
+# Look at the ar1 model
+# Note that the 1st phi coefficient is nearly one
+# Zuur says this "may indicate a more serious problem of the residuals being 
+# non-stationary (non-constant mean or variance)"
+# Also, a more complicated sinusoidal error structure may be more appropriate
+# (ie + correlations near, but - correlations farther away (day vs night))
+#summary(par.ar1$lme)
+summary(par.ar1$gam)
+
+# Set graphs to 1 row x 2 columns
+#layout(matrix(1:2, ncol = 2))
+
+# plot of autocorrelation in variances
+#acf(resid(par.ar1$lme), lag.max = 96, main = "ACF")
+#pacf(resid(par.ar1$lme), lag.max = 96, main = "pACF")
+
+# Reset the layout
+#layout(1)
+
+# Plot residuals over time
+plot(par.ar1$lme, resid(.) ~ minute)
+
+
+##### Model Temporal Fit #####
+
+# Set graphs to 1 row x 2 columns
+layout(matrix(1:2, ncol = 2))
+
+# Plot the two smoothers
+plot(par.ar1$gam, shade = T, residuals = T, main = "PAR")
+
+# Reset the layout
+layout(1)
+
+# Add predicted values to the dataset
+cbind(par.data, predict(par.ar1$gam, se.fit = T)) %>%
+    
+    # Plot the observed and predicted values
+    ggplot(aes(x = hour)) +
+    
+        # Add rectangles for darkness
+        geom_rect(data = darkness, aes(xmin = dusk, xmax = dawn, 
+            ymin = -200, ymax = 2050, x = NULL, y = NULL, color = NULL), 
+            fill = "grey85", show.legend = F) +
+    
+        # Add observed points
+        geom_point(aes(y = par)) + 
+    
+        # Add confidence intervals
+        geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
+            ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
+    
+        # Add prediction line
+        geom_line(aes(y = fit), color = "red") + 
+    
+        # Add axis labels
+        xlab("Hour") + ylab("PAR") + 
+    
+        # Add theme
+        ggplot.theme
+
+
+##### Transect Order #####
+
+# Fit a model with transect
+par.ar1.transect <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute) + transect, 
+    data = par.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Test whether there are differences in par between transects
+AICctab(par.uncorr$lme, par.ar1$lme, par.ar1.transect$lme, 
+    nobs = nrow(par.data))
+
+# Show the lme summary for the transect order
+summary(par.ar1.transect$lme)
+
+
+```
+
+
+### Session Information
+
+```{r 'Session_Info', echo = F, comment = ""}
+
+# Add session information to help with reproduceability
+sessionInfo()
+
+```
+
