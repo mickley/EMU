@@ -1,10 +1,11 @@
 ---
-title: "Transect Comparison"
+title: "Microenvironmental Differences Between Transects"
 author: "James Mickley"
 output:
   html_document:
     keep_md: yes
     theme: readable
+    toc: yes
   html_notebook:
     theme: readable
 graphics: yes
@@ -41,10 +42,10 @@ Readings have temporal autocorrelation, therefore, we add an autoregressive movi
 
 After all temporal effects are accounted for, we test our expectations:
 
-1. The temperature should be lower in the woods
-2. The humidity should be higher in the woods
-3. The light levels should be lower in the woods
-4. The soil in the meadow should be wetter than the woods
+1. The temperature should be lower in the woods (yes)
+2. The humidity should be higher in the woods (yes)
+3. The light levels should be lower in the woods (yes)
+4. The soil in the meadow should be wetter than the woods (yes)
 
 *Nota bene*: I've left out the first position in the meadow transect for temperature and humidity.  This BME280 failed and gave suspect values for much of the time.  
 
@@ -659,7 +660,7 @@ summary(par.ar1.transect$lme)
 ```
 
 
-### Session Information
+## Session Information
 
 ```{r 'Session_Info', echo = F, comment = ""}
 

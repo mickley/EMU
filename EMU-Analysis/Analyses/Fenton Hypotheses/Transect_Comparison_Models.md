@@ -508,7 +508,7 @@ After accounting for temporal variation, and autocorrelation, the woods gets 300
 ```
 
 
-### Session Information
+## Session Information
 
 
 ```
