@@ -51,6 +51,10 @@ i2c, rtctime
 - 3/9/2017 JGM - Version 1.2:
     - Added module version printout
 
+- 12/20/2017 JGM - Version 1.3:
+    - Added another time formatter: %R to format in R's native
+      posixCT format: 1969-12-31 23:59:00
+
 --]]
 
 
@@ -67,7 +71,7 @@ local M = {}
 -- Local variables to store various settings
 local address, timezone
 local i2c_id = 0
-local version = 1.2
+local version = 1.3
 
 
 -- ############### Alarm Type Constants ###############
@@ -407,6 +411,10 @@ function M.format(format, second, minute, hour, dayofweek, date, month, year, tz
     -- %Y-%m-%dT%H:%M:%S%z
     format = string.gsub(format, "%%f", "%%Y-%%m-%%dT%%H:%%M:%%S%%z")
 
+    -- Replace the %R macro with time formatted natively for R
+    -- YYYY-mm-dd HH:MM:SS
+    format = string.gsub(format, "%%R", "%%Y-%%m-%%d %%H:%%M:%%S")
+    
 
     -- ##### POSIX formatting codes ##### 
 
