@@ -69,7 +69,7 @@ In the meadow, the pattern is unpredictable, but the measurements are closer tog
 
 ## Comparisons between EMU & iButton/Hobo Pendant for Woods transect
 
-The Hobo Pendant reads slightly high on temperature.  Presumably it's getting heated inside of its enclosed case.
+The Hobo Pendant reads slightly high on temperature (by about 2ºC).  Presumably it's getting heated inside of its enclosed case.
 
 
 ![](Sensor-Comparison_files/figure-html/Temp_Comp_Hobo-1.png)<!-- -->
@@ -78,6 +78,17 @@ The iButtons read slightly lower than the EMU when it's cold, and slightly highe
 
 ![](Sensor-Comparison_files/figure-html/Temp_Comp_iButton-1.png)<!-- -->
 
+```
+## [1] 4
+```
+
+Comparing iButtons to Hobos, we see that hobos read too high for anything over about 10C.  Again evidence of self-heating.
+
+
+
+
+
+
 ### Humidity
 
 The iButtons have slightly higher humidity (3-5% or so) in the Woods.  They also can return values higher than 100%.  
@@ -85,6 +96,8 @@ The iButtons have slightly higher humidity (3-5% or so) in the Woods.  They also
 In the meadow, the BME280 failed, and I think all the humidity values are bogus.
 
 ![](Sensor-Comparison_files/figure-html/Humid_Comp-1.png)<!-- -->
+
+![](Sensor-Comparison_files/figure-html/Temp_Humid_Comp-1.png)<!-- -->
 
 
 ### PAR
