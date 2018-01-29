@@ -46,6 +46,9 @@ i2c, tmr
       out of range
     - Cleaned up code a bit.
 
+- 12/20/2017 JGM - Version 1.1
+    - Fixed bug that resulted in a crash if sensor not present
+
 --]]
 
 
@@ -62,7 +65,7 @@ local M = {}
 -- Local variables
 local address, MTReg, resolution, delay, modeCode
 local i2c_id = 0
-local version = 1.0
+local version = 1.1
 
 
 -- ############### Private Functions ###############
@@ -153,11 +156,11 @@ function M.init(sda, scl, addr, sensor_mode)
 
         -- Turn on the sensor
         M.on()
-    
-        -- Set the mode, defaults to Continuous_H if not set
-        M.setMode(mode)
         
     end
+
+    -- Set the mode, defaults to Continuous_H if not set
+    M.setMode(sensor_mode)
     
     -- If we got an acknowledgement (test = true) then we've found the device
     return test
