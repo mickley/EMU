@@ -150,7 +150,6 @@ light <- light %>%
         light.quad$coefficients[2] * lux + 
         light.quad$coefficients[3] * lux ^ 2)
 
-
 ```
 
 
@@ -243,6 +242,28 @@ light %>% ggplot(aes(x = lux, y = umol)) +
     
         # Add theme
         ggplot.theme
+
+```
+
+[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the quadratic light model and PAR values from the LiCor.  This gives a measure of accuracy.
+
+```{r 'RMSE_Light', echo = F, comment = ""}
+
+# Calculate the root mean square of the residuals
+rms.light <- light %>%
+    
+    # Calculate the difference between the LiCor and the prediction
+    mutate(umol.diff = umol - umol.quad) %>%
+    
+    # Square the differences
+    mutate(diff.squared = umol.diff ^ 2) %>%
+    
+    # Calculate the mean square and root mean square
+    summarize(mean.square = mean(diff.squared), 
+        root.mean.square = sqrt(mean.square))
+
+# Display
+rms.light
 
 ```
 
@@ -567,6 +588,31 @@ cal %>%
     
 
 ```
+
+
+
+[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the quadratic gold model and VWC values from the scale.  This gives a measure of accuracy.
+
+```{r 'RMSE_Soil', echo = F, comment = ""}
+
+# Calculate the root mean square of the residuals
+rms.soil <- cal %>%
+    
+    # Calculate the difference between the actual VWC and the prediction
+    mutate(vwc.diff = vwc - gold2_vwc) %>%
+    
+    # Square the differences
+    mutate(diff.squared = vwc.diff ^ 2) %>%
+    
+    # Calculate the mean square and root mean square
+    summarize(mean.square = mean(diff.squared), 
+        root.mean.square = sqrt(mean.square))
+
+# Display
+rms.soil
+
+```
+
 
 A graph of the calibration and formula using the quadratic model
 

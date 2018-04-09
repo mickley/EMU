@@ -1,5 +1,15 @@
-# LiCor Calibration
-James Mickley  
+---
+title: "LiCor Calibration"
+author: "James Mickley"
+output:
+  html_document:
+    keep_md: yes
+    theme: readable
+    toc: true
+  html_notebook:
+    theme: readable
+graphics: yes
+---
 
 
 
@@ -88,6 +98,14 @@ The best calibration is the quadratic model, presented here alone
 
 
 ![](Calibration_files/figure-html/Light_quad_calibration-1.png)<!-- -->
+
+[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the quadratic light model and PAR values from the LiCor.  This gives a measure of accuracy.
+
+
+```
+  mean.square root.mean.square
+1    2597.424         50.96493
+```
 
 Graph showing the predicted values of PAR from the quadratic model graphed against the LiCor
 
@@ -304,6 +322,17 @@ Adding temperature to the quadratic fit does improve things slightly, but the te
 
 ![](Calibration_files/figure-html/Soil_probes_over_time-1.png)<!-- -->
 
+
+
+[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the quadratic gold model and VWC values from the scale.  This gives a measure of accuracy.
+
+
+```
+  mean.square root.mean.square
+1  0.00604131       0.07772586
+```
+
+
 A graph of the calibration and formula using the quadratic model
 
 ![](Calibration_files/figure-html/Soil_quad_calibration-1.png)<!-- -->
@@ -321,35 +350,40 @@ Comparison of predicted values of VWC from the EMU sensors and VWC from the Hobo
 
 
 ```
-R version 3.4.0 (2017-04-21)
-Platform: x86_64-apple-darwin15.6.0 (64-bit)
-Running under: OS X El Capitan 10.11.6
+R version 3.4.3 (2017-11-30)
+Platform: x86_64-redhat-linux-gnu (64-bit)
+Running under: CentOS Linux 7 (Core)
 
 Matrix products: default
-BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
-LAPACK: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRlapack.dylib
+BLAS/LAPACK: /usr/lib64/R/lib/libRblas.so
 
 locale:
-[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 attached base packages:
 [1] stats4    stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:
-[1] bindrcpp_0.2   dplyr_0.7.1    tidyr_0.6.3    bbmle_1.0.19  
-[5] ggpmisc_0.2.15 cowplot_0.7.0  ggplot2_2.2.1 
+[1] bindrcpp_0.2   dplyr_0.7.4    tidyr_0.7.2    bbmle_1.0.20  
+[5] ggpmisc_0.2.16 cowplot_0.9.1  ggplot2_2.2.1 
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.11      bindr_0.1         knitr_1.16       
- [4] magrittr_1.5      munsell_0.4.3     lattice_0.20-35  
- [7] colorspace_1.3-2  R6_2.2.2          rlang_0.1.1      
-[10] stringr_1.2.0     plyr_1.8.4        tools_3.4.0      
-[13] grid_3.4.0        gtable_0.2.0      htmltools_0.3.6  
-[16] assertthat_0.2.0  yaml_2.1.14       lazyeval_0.2.0   
-[19] rprojroot_1.2     digest_0.6.12     tibble_1.3.3     
-[22] numDeriv_2016.8-1 codetools_0.2-15  glue_1.1.1       
-[25] evaluate_0.10     rmarkdown_1.6     stringi_1.1.5    
-[28] compiler_3.4.0    scales_0.4.1      backports_1.1.0  
-[31] pkgconfig_2.0.1  
+ [1] Rcpp_0.12.13      compiler_3.4.3    plyr_1.8.4       
+ [4] bindr_0.1         tools_3.4.3       digest_0.6.12    
+ [7] evaluate_0.10.1   tibble_1.3.4      gtable_0.2.0     
+[10] lattice_0.20-35   pkgconfig_2.0.1   rlang_0.1.4      
+[13] yaml_2.1.14       polynom_1.3-9     stringr_1.2.0    
+[16] knitr_1.17        tidyselect_0.2.3  rprojroot_1.2    
+[19] grid_3.4.3        glue_1.2.0        R6_2.2.2         
+[22] rmarkdown_1.8     purrr_0.2.4       magrittr_1.5     
+[25] backports_1.1.1   scales_0.5.0      codetools_0.2-15 
+[28] htmltools_0.3.6   assertthat_0.2.0  colorspace_1.3-2 
+[31] numDeriv_2016.8-1 labeling_0.3      stringi_1.1.6    
+[34] lazyeval_0.2.1    munsell_0.4.3    
 ```
