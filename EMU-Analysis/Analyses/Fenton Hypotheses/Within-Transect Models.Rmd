@@ -319,6 +319,39 @@ AICctab(m.temp.uncorr$lme, m.temp.ar1$lme, m.temp.ar1.factor$lme,
 summary(m.temp.ar1.factor$gam)
 summary(m.temp.ar1.factor$lme)
 
+
+# Make plot of mean and SE of Temp (from model), based on transect order
+
+mead.temp.df <- summary(m.temp.ar1.factor$gam)$p.table %>% data.frame
+mead.temp.df
+
+mead.temp.df$mean <- mead.temp.df$Estimate
+mead.temp.df$mean[2:length(mead.temp.df$Estimate)] <- mead.temp.df$Estimate[1] + mead.temp.df$Estimate[2:length(mead.temp.df$Estimate)]
+
+mead.temp.df$order <-  levels(as.factor(m.temp.data$order))
+
+mead.temp.df <- mead.temp.df %>%
+    
+    mutate(upper = mean + Std..Error, 
+           
+           lower = mean - Std..Error, 
+           
+           transect = "Meadow")
+
+
+# plot it
+
+mead.temp.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean))+
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
+    
+    ggplot.theme
+
+
 ```
 
 ### Woods Temperature
@@ -414,6 +447,65 @@ AICctab(w.temp.uncorr$lme, w.temp.ar1$lme, w.temp.ar1.factor$lme,
 # Show the summary for the transect order
 summary(w.temp.ar1.factor$gam)
 summary(w.temp.ar1.factor$lme)
+
+
+# Make plot of mean and SE of Temp (from model), based on transect order
+
+wood.temp.df <- summary(w.temp.ar1.factor$gam)$p.table %>% data.frame
+wood.temp.df
+
+wood.temp.df$mean <- wood.temp.df$Estimate
+wood.temp.df$mean[2:length(wood.temp.df$Estimate)] <- wood.temp.df$Estimate[1] + wood.temp.df$Estimate[2:length(wood.temp.df$Estimate)]
+
+wood.temp.df$order <-  levels(as.factor(w.temp.data$order))
+
+wood.temp.df <- wood.temp.df %>%
+    
+    mutate(upper = mean + Std..Error, 
+           
+           lower = mean - Std..Error, 
+           
+           transect = "Woods")
+
+# plot it
+
+wood.temp.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean))+
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
+    
+    ggplot.theme
+
+
+# Combine wood and meadow and plot together
+
+comb.temp.df <- rbind(mead.temp.df, wood.temp.df)
+
+
+comb.temp.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean, color = transect), size = 2) +
+    
+    geom_line(aes(x = order, y = mean, color = transect, group = transect), size = 1) +
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper, color = transect), width = 0.1) +
+    
+    scale_color_manual(name = "Transect", values = c("red", "blue")) +
+    
+    xlab("EMU Number") + 
+    
+    ylab("Temperature") +
+    
+
+    ggplot.theme
+
+
+
 
 ```
 
