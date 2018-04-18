@@ -185,7 +185,7 @@ The model that includes transect is better than the base temporal model for temp
 After accounting for temporal variation, and autocorrelation, the woods is 1.96 ºC cooler than the meadow.  This is close to the paired t-test result: 1.83 ºC cooler.
 
 
-```{r 'Temp_Comp', echo = F}
+```{r 'Temp_Comp', echo = F, comment = ""}
 
 # Construct an uncorrelated gam with the two smoothers
 # Use fixed degree of freedom regression spline instead of penalized for inter-day
@@ -315,7 +315,7 @@ The model that includes transect is better than the base temporal model for humi
 After accounting for temporal variation, and autocorrelation, the woods is 4.23% more humid than the meadow.  This is close to the paired t-test result: 3.4% more humid.
 
 
-```{r 'Humid_Comp', echo = F}
+```{r 'Humid_Comp', echo = F, comment = ""}
 
 # Construct an uncorrelated gam with the two smoothers
 # Use fixed degree of freedom regression spline instead of penalized for inter-day
@@ -445,7 +445,7 @@ The model that includes transect is better than the base temporal model for VWC.
 After accounting for temporal variation, and autocorrelation, the woods is drier than the meadow by 0.14 m<sup>3</sup>/m<sup>3</sup>.  This is close to the paired t-test result: 0.19 m<sup>3</sup>/m<sup>3</sup>.
 
 
-```{r 'VWC_Comp', echo = F}
+```{r 'VWC_Comp', echo = F, comment = ""}
 
 # Construct an uncorrelated gam with the two smoothers
 # Use fixed degree of freedom regression spline instead of penalized for inter-day
@@ -502,7 +502,7 @@ vwc.ar1.transect <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) +
 vwc.ar1.transect.penalized <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) + 
     s(minute) + transect, 
     data = vwc.data, correlation = corAR1(form = ~ 1|t.order))
-summary(vwc.uncorr$lme)
+
 # Test whether there are differences in vwc between transects
 AICctab(vwc.uncorr$lme, vwc.ar1$lme, vwc.ar1.transect$lme, 
     vwc.ar1.transect.penalized$lme, nobs = nrow(vwc.data))
@@ -574,7 +574,7 @@ The model that includes transect is better than the base temporal model for PFD.
 After accounting for temporal variation, and autocorrelation, the woods gets 300.7 µmol/m<sup>2</sup>/s less light than the meadow.  This is close to the paired t-test result: 243 µmol/m<sup>2</sup>/s less light.
 
 
-```{r 'PAR_Comp', echo = F}
+```{r 'PAR_Comp', echo = F, comment = ""}
 
 # Construct an uncorrelated gam with the two smoothers
 # Use fixed degree of freedom regression spline instead of penalized for inter-day
@@ -700,34 +700,29 @@ cbind(par.data, predict(par.ar1.transect$gam, se.fit = T)) %>%
 # Format for export:
 # Variable Transect Estimate, StdErr.Lower, StdErr.Upper
 
-
 # Get the coefficients for the temperature model
 transect.coeff <- summary(temp.ar1.transect$gam)$p.table %>% data.frame %>% 
     mutate(var = "Temperature", transect = c("Meadow","Woods")) %>%
 
-# Add the coefficients for the humidity model
-rbind(summary(humid.ar1.transect$gam)$p.table %>% data.frame %>% 
-    mutate(var = "Humidity", transect = c("Meadow","Woods"))) %>%
+    # Add the coefficients for the humidity model
+    rbind(summary(humid.ar1.transect$gam)$p.table %>% data.frame %>% 
+        mutate(var = "Humidity", transect = c("Meadow","Woods"))) %>%
 
-# Add the coefficients for the VWC model
-rbind(summary(vwc.ar1.transect$gam)$p.table %>% data.frame %>% 
-    mutate(var = "VWC", transect = c("Meadow","Woods"))) %>%
+    # Add the coefficients for the VWC model
+    rbind(summary(vwc.ar1.transect$gam)$p.table %>% data.frame %>% 
+        mutate(var = "VWC", transect = c("Meadow","Woods"))) %>%
 
-# Add the coefficients for the PAR model
-rbind(summary(par.ar1.transect$gam)$p.table %>% data.frame %>% 
-    mutate(var = "Par", transect = c("Meadow","Woods")))
-
-
-#mead.temp.df$mean <- mead.temp.df$Estimate
-#mead.temp.df$mean[2:length(mead.temp.df$Estimate)] <- mead.temp.df$Estimate[1] + #mead.temp.df$Estimate[2:length(mead.temp.df$Estimate)]
-
-#mead.temp.df$order <-  levels(as.factor(m.temp.data$order))
-
-#mead.temp.df <- mead.temp.df %>%
+    # Add the coefficients for the PAR model
+    rbind(summary(par.ar1.transect$gam)$p.table %>% data.frame %>% 
+        mutate(var = "Par", transect = c("Meadow","Woods"))) %>%
     
-#    mutate(upper = mean + Std..Error, 
-#           lower = mean - Std..Error, 
-#           transect = "Meadow")
+    # Adjust the coefficients for the Woods by adding the meadow (intercept)
+    # But only do this for the Woods, not the meadow, which is already correct
+    mutate(Estimate = ifelse(transect == "Meadow", Estimate, Estimate + lag(Estimate, 1)))
+
+# Write the transect coefficients to CSV
+write.csv(transect.coeff, "transect.coeff.csv")
+
 
 ```
 
