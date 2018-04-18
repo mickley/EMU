@@ -9,6 +9,8 @@ output:
   html_notebook:
     theme: readable
 graphics: yes
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include = F}
@@ -186,8 +188,10 @@ After accounting for temporal variation, and autocorrelation, the woods is 1.96 
 ```{r 'Temp_Comp', echo = F}
 
 # Construct an uncorrelated gam with the two smoothers
+# Use fixed degree of freedom regression spline instead of penalized for inter-day
+# This improves the model considerably: better residuals, higher R2, lower AIC
 temp.uncorr <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute), data = temp.data)
+    s(minute, k = 23, fx = T), data = temp.data)
 
 ##### Autocorrelation #####
 
@@ -211,11 +215,11 @@ layout(1)
 
 # p = 1, q = 0 (AR1), grouped by order and transect
 temp.ar1 <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute), data = temp.data,
+    s(minute, k = 23, fx = T), data = temp.data,
     correlation = corAR1(form = ~ 1|t.order))
 
 # Compare models
-AICctab(temp.uncorr$lme, temp.ar1$lme, nobs = nrow(temp.data))
+#AICctab(temp.uncorr$lme, temp.ar1$lme, nobs = nrow(temp.data))
 
 # Look at the ar1 model
 # Note that the 1st phi coefficient is nearly one
@@ -224,35 +228,54 @@ AICctab(temp.uncorr$lme, temp.ar1$lme, nobs = nrow(temp.data))
 # Also, a more complicated sinusoidal error structure may be more appropriate
 # (ie + correlations near, but - correlations farther away (day vs night))
 #summary(temp.ar1$lme)
-summary(temp.ar1$gam)
-
-# Set graphs to 1 row x 2 columns
-#layout(matrix(1:2, ncol = 2))
-
-# plot of autocorrelation in variances
-#acf(resid(temp.ar1$lme), lag.max = 96, main = "ACF")
-#pacf(resid(temp.ar1$lme), lag.max = 96, main = "pACF")
-
-# Reset the layout
-#layout(1)
-
-# Plot residuals over time
-plot(temp.ar1$lme, resid(.) ~ minute)
+#summary(temp.ar1$gam)
 
 
-##### Model Temporal Fit #####
+##### Transect Order #####
+
+# Fit a model with transect
+temp.ar1.transect <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute, k = 23, fx = T) + transect, 
+    data = temp.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Fit a model with transect and with penalized splines
+temp.ar1.transect.penalized <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute) + transect, 
+    data = temp.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Test whether there are differences in temperature between transects
+AICctab(temp.uncorr$lme, temp.ar1$lme, temp.ar1.transect$lme, 
+    temp.ar1.transect.penalized$lme, nobs = nrow(temp.data))
+
+# Show the summary for the transect order
+summary(temp.ar1.transect$gam)
+summary(temp.ar1.transect$lme)
+
+
+##### Model Diagnostics #####
 
 # Set graphs to 1 row x 2 columns
 layout(matrix(1:2, ncol = 2))
 
+# plot of autocorrelation in variances
+acf(resid(temp.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "ACF")
+pacf(resid(temp.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "pACF")
+
 # Plot the two smoothers
-plot(temp.ar1$gam, shade = T, residuals = T, main = "Temperature")
+plot(temp.ar1.transect$gam, shade = T, residuals = T, ylab = "Temperature (ºC)",
+     main = "Temperature")
 
 # Reset the layout
 layout(1)
 
+# Plot residuals over time
+plot(temp.ar1.transect$lme, resid(., type = "normalized") ~ minute)
+
+
+##### Plot the Model #####
+
 # Add predicted values to the dataset
-cbind(temp.data, predict(temp.ar1$gam, se.fit = T)) %>%
+cbind(temp.data, predict(temp.ar1.transect$gam, se.fit = T)) %>%
     
     # Plot the observed and predicted values
     ggplot(aes(x = hour)) +
@@ -263,35 +286,23 @@ cbind(temp.data, predict(temp.ar1$gam, se.fit = T)) %>%
             fill = "grey85", show.legend = F) + 
     
         # Add observed points
-        geom_point(aes(y = temperature)) + 
+        geom_point(aes(y = temperature, color = transect), alpha = 0.05) + 
     
         # Add confidence intervals
-        geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
-            ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
+        #geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
+        #    ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
     
         # Add prediction line
-        geom_line(aes(y = fit), color = "red") + 
+        geom_line(aes(y = fit, color = transect)) + 
+    
+        # Set the colors and the legend title
+        scale_color_manual(name = "Transect", values = c("red", "blue")) + 
     
         # Add axis labels
         xlab("Hour") + ylab("Temperature (ºC)") + 
     
         # Add theme
         ggplot.theme
-
-
-##### Transect Order #####
-
-# Fit a model with transect
-temp.ar1.transect <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute) + transect, 
-    data = temp.data, correlation = corAR1(form = ~ 1|t.order))
-
-# Test whether there are differences in temperature between transects
-AICctab(temp.uncorr$lme, temp.ar1$lme, temp.ar1.transect$lme, 
-    nobs = nrow(temp.data))
-
-# Show the lme summary for the transect order
-summary(temp.ar1.transect$lme)
 
 
 ```
@@ -307,8 +318,10 @@ After accounting for temporal variation, and autocorrelation, the woods is 4.23%
 ```{r 'Humid_Comp', echo = F}
 
 # Construct an uncorrelated gam with the two smoothers
+# Use fixed degree of freedom regression spline instead of penalized for inter-day
+# This improves the model considerably: better residuals, higher R2, lower AIC
 humid.uncorr <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute), data = humid.data)
+    s(minute, k = 23, fx = T), data = humid.data)
 
 ##### Autocorrelation #####
 
@@ -332,11 +345,11 @@ layout(1)
 
 # p = 1, q = 0 (AR1), grouped by order and transect
 humid.ar1 <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute), data = humid.data,
+    s(minute, k = 23, fx = T), data = humid.data,
     correlation = corAR1(form = ~ 1|t.order))
 
 # Compare models
-AICctab(humid.uncorr$lme, humid.ar1$lme, nobs = nrow(humid.data))
+#AICctab(humid.uncorr$lme, humid.ar1$lme, nobs = nrow(humid.data))
 
 # Look at the ar1 model
 # Note that the 1st phi coefficient is nearly one
@@ -345,35 +358,54 @@ AICctab(humid.uncorr$lme, humid.ar1$lme, nobs = nrow(humid.data))
 # Also, a more complicated sinusoidal error structure may be more appropriate
 # (ie + correlations near, but - correlations farther away (day vs night))
 #summary(humid.ar1$lme)
-summary(humid.ar1$gam)
-
-# Set graphs to 1 row x 2 columns
-#layout(matrix(1:2, ncol = 2))
-
-# plot of autocorrelation in variances
-#acf(resid(humid.ar1$lme), lag.max = 96, main = "ACF")
-#pacf(resid(humid.ar1$lme), lag.max = 96, main = "pACF")
-
-# Reset the layout
-#layout(1)
-
-# Plot residuals over time
-plot(humid.ar1$lme, resid(.) ~ minute)
+#summary(humid.ar1$gam)
 
 
-##### Model Temporal Fit #####
+##### Transect Order #####
+
+# Fit a model with transect
+humid.ar1.transect <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute, k = 23, fx = T) + transect, 
+    data = humid.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Fit a model with transect and with penalized splines
+humid.ar1.transect.penalized <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute) + transect, 
+    data = humid.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Test whether there are differences in humidity between transects
+AICctab(humid.uncorr$lme, humid.ar1$lme, humid.ar1.transect$lme,
+    humid.ar1.transect.penalized$lme, nobs = nrow(humid.data))
+
+# Show the summary for the transect order
+summary(humid.ar1.transect$gam)
+summary(humid.ar1.transect$lme)
+
+
+##### Model Diagnostics #####
 
 # Set graphs to 1 row x 2 columns
 layout(matrix(1:2, ncol = 2))
 
+# plot of autocorrelation in variances
+acf(resid(humid.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "ACF")
+pacf(resid(humid.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "pACF")
+
 # Plot the two smoothers
-plot(humid.ar1$gam, shade = T, residuals = T, main = "Humidity")
+plot(humid.ar1.transect$gam, shade = T, residuals = T, ylab = "Humidity (%)",
+     main = "Humidity")
 
 # Reset the layout
 layout(1)
 
+# Plot residuals over time
+plot(humid.ar1.transect$lme, resid(., type = "normalized") ~ minute)
+
+
+##### Plot the Model #####
+
 # Add predicted values to the dataset
-cbind(humid.data, predict(humid.ar1$gam, se.fit = T)) %>%
+cbind(humid.data, predict(humid.ar1.transect$gam, se.fit = T)) %>%
     
     # Plot the observed and predicted values
     ggplot(aes(x = hour)) +
@@ -384,35 +416,23 @@ cbind(humid.data, predict(humid.ar1$gam, se.fit = T)) %>%
             fill = "grey85", show.legend = F) + 
     
         # Add observed points
-        geom_point(aes(y = humidity)) + 
+        geom_point(aes(y = humidity, color = transect), alpha = 0.05) + 
     
         # Add confidence intervals
-        geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
-            ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
+        #geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
+        #    ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
     
         # Add prediction line
-        geom_line(aes(y = fit), color = "red") + 
+        geom_line(aes(y = fit, color = transect)) + 
+    
+        # Set the colors and the legend title
+        scale_color_manual(name = "Transect", values = c("red", "blue")) +     
     
         # Add axis labels
         xlab("Hour") + ylab("Relative Humidity (%)") + 
     
         # Add theme
         ggplot.theme
-
-
-##### Transect Order #####
-
-# Fit a model with transect
-humid.ar1.transect <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute) + transect, 
-    data = humid.data, correlation = corAR1(form = ~ 1|t.order))
-
-# Test whether there are differences in humidity between transects
-AICctab(humid.uncorr$lme, humid.ar1$lme, humid.ar1.transect$lme, 
-    nobs = nrow(humid.data))
-
-# Show the lme summary for the transect order
-summary(humid.ar1.transect$lme)
 
 
 ```
@@ -428,8 +448,10 @@ After accounting for temporal variation, and autocorrelation, the woods is drier
 ```{r 'VWC_Comp', echo = F}
 
 # Construct an uncorrelated gam with the two smoothers
+# Use fixed degree of freedom regression spline instead of penalized for inter-day
+# This improves the model considerably: better residuals, higher R2, lower AIC
 vwc.uncorr <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute), data = vwc.data)
+    s(minute, k = 23, fx = T), data = vwc.data)
 
 ##### Autocorrelation #####
 
@@ -453,11 +475,11 @@ layout(1)
 
 # p = 1, q = 0 (AR1), grouped by order and transect
 vwc.ar1 <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute), data = vwc.data,
+    s(minute, k = 23, fx = T), data = vwc.data,
     correlation = corAR1(form = ~ 1|t.order))
 
 # Compare models
-AICctab(vwc.uncorr$lme, vwc.ar1$lme, nobs = nrow(vwc.data))
+#AICctab(vwc.uncorr$lme, vwc.ar1$lme, nobs = nrow(vwc.data))
 
 # Look at the ar1 model
 # Note that the 1st phi coefficient is nearly one
@@ -466,35 +488,54 @@ AICctab(vwc.uncorr$lme, vwc.ar1$lme, nobs = nrow(vwc.data))
 # Also, a more complicated sinusoidal error structure may be more appropriate
 # (ie + correlations near, but - correlations farther away (day vs night))
 #summary(m.vwc.ar1$lme)
-summary(vwc.ar1$gam)
-
-# Set graphs to 1 row x 2 columns
-#layout(matrix(1:2, ncol = 2))
-
-# plot of autocorrelation in variances
-#acf(resid(vwc.ar1$lme), lag.max = 96, main = "ACF")
-#pacf(resid(vwc.ar1$lme), lag.max = 96, main = "pACF")
-
-# Reset the layout
-#layout(1)
-
-# Plot residuals over time
-plot(vwc.ar1$lme, resid(.) ~ minute)
+#summary(vwc.ar1$gam)
 
 
-##### Model Temporal Fit #####
+##### Transect Order #####
+
+# Fit a model with transect
+vwc.ar1.transect <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute, k = 23, fx = T) + transect, 
+    data = vwc.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Fit a model with transect and with penalized splines
+vwc.ar1.transect.penalized <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute) + transect, 
+    data = vwc.data, correlation = corAR1(form = ~ 1|t.order))
+summary(vwc.uncorr$lme)
+# Test whether there are differences in vwc between transects
+AICctab(vwc.uncorr$lme, vwc.ar1$lme, vwc.ar1.transect$lme, 
+    vwc.ar1.transect.penalized$lme, nobs = nrow(vwc.data))
+
+# Show the summary for the transect order
+summary(vwc.ar1.transect$gam)
+summary(vwc.ar1.transect$lme)
+
+
+##### Model Diagnostics #####
 
 # Set graphs to 1 row x 2 columns
 layout(matrix(1:2, ncol = 2))
 
+# plot of autocorrelation in variances
+acf(resid(vwc.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "ACF")
+pacf(resid(vwc.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "pACF")
+
 # Plot the two smoothers
-plot(vwc.ar1$gam, shade = T, residuals = T, main = "vwc")
+plot(vwc.ar1.transect$gam, shade = T, residuals = T, ylab = "VWC (m3 m-3)",
+     main = "VWC")
 
 # Reset the layout
 layout(1)
 
+# Plot residuals over time
+plot(vwc.ar1.transect$lme, resid(., type = "normalized") ~ minute)
+
+
+##### Plot the Model #####
+
 # Add predicted values to the dataset
-cbind(vwc.data, predict(vwc.ar1$gam, se.fit = T)) %>%
+cbind(vwc.data, predict(vwc.ar1.transect$gam, se.fit = T)) %>%
     
     # Plot the observed and predicted values
     ggplot(aes(x = hour)) +
@@ -505,43 +546,30 @@ cbind(vwc.data, predict(vwc.ar1$gam, se.fit = T)) %>%
             fill = "grey85", show.legend = F) +
     
         # Add observed points
-        geom_point(aes(y = vwc)) + 
+        geom_point(aes(y = vwc, color = transect), alpha = 0.05) + 
     
         # Add confidence intervals
-        geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
-            ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
+        #geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
+        #    ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
     
         # Add prediction line
-        geom_line(aes(y = fit), color = "red") + 
+        geom_line(aes(y = fit, color = transect)) + 
     
+        # Set the colors and the legend title
+        scale_color_manual(name = "Transect", values = c("red", "blue")) + 
+
         # Add axis labels
-        xlab("Hour") + ylab("VWC") + 
+        xlab("Hour") + ylab("VWC (m3 m-3") + 
     
         # Add theme
         ggplot.theme
 
-
-##### Transect Order #####
-
-# Fit a model with transect
-vwc.ar1.transect <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute) + transect, 
-    data = vwc.data, correlation = corAR1(form = ~ 1|t.order))
-
-# Test whether there are differences in vwc between transects
-AICctab(vwc.uncorr$lme, vwc.ar1$lme, vwc.ar1.transect$lme, 
-    nobs = nrow(vwc.data))
-
-# Show the lme summary for the transect order
-summary(vwc.ar1.transect$lme)
-
-
 ```
 
 
-## PAR
+## PFD
 
-The model that includes transect is better than the base temporal model for PAR.
+The model that includes transect is better than the base temporal model for PFD.
 
 After accounting for temporal variation, and autocorrelation, the woods gets 300.7 µmol/m<sup>2</sup>/s less light than the meadow.  This is close to the paired t-test result: 243 µmol/m<sup>2</sup>/s less light.
 
@@ -549,6 +577,8 @@ After accounting for temporal variation, and autocorrelation, the woods gets 300
 ```{r 'PAR_Comp', echo = F}
 
 # Construct an uncorrelated gam with the two smoothers
+# Use fixed degree of freedom regression spline instead of penalized for inter-day
+# This improves the model considerably: better residuals, higher R2, lower AIC
 par.uncorr <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
     s(minute), data = par.data)
 
@@ -574,11 +604,11 @@ layout(1)
 
 # p = 1, q = 0 (AR1), grouped by order and transect
 par.ar1 <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute), data = par.data,
+    s(minute, k = 23, fx = T), data = par.data,
     correlation = corAR1(form = ~ 1|t.order))
 
 # Compare models
-AICctab(par.uncorr$lme, par.ar1$lme, nobs = nrow(par.data))
+#AICctab(par.uncorr$lme, par.ar1$lme, nobs = nrow(par.data))
 
 # Look at the ar1 model
 # Note that the 1st phi coefficient is nearly one
@@ -587,35 +617,54 @@ AICctab(par.uncorr$lme, par.ar1$lme, nobs = nrow(par.data))
 # Also, a more complicated sinusoidal error structure may be more appropriate
 # (ie + correlations near, but - correlations farther away (day vs night))
 #summary(par.ar1$lme)
-summary(par.ar1$gam)
-
-# Set graphs to 1 row x 2 columns
-#layout(matrix(1:2, ncol = 2))
-
-# plot of autocorrelation in variances
-#acf(resid(par.ar1$lme), lag.max = 96, main = "ACF")
-#pacf(resid(par.ar1$lme), lag.max = 96, main = "pACF")
-
-# Reset the layout
-#layout(1)
-
-# Plot residuals over time
-plot(par.ar1$lme, resid(.) ~ minute)
+#summary(par.ar1$gam)
 
 
-##### Model Temporal Fit #####
+##### Transect Order #####
+
+# Fit a model with transect
+par.ar1.transect <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute, k = 23, fx = T) + transect, 
+    data = par.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Fit a model with transect and with penalized splines
+par.ar1.transect.penalized <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute) + transect, 
+    data = par.data, correlation = corAR1(form = ~ 1|t.order))
+
+# Test whether there are differences in par between transects
+AICctab(par.uncorr$lme, par.ar1$lme, par.ar1.transect$lme, 
+    par.ar1.transect.penalized$lme, nobs = nrow(par.data))
+
+# Show the summary for the transect order
+summary(par.ar1.transect$gam)
+summary(par.ar1.transect$lme)
+
+
+##### Model Diagnostics #####
 
 # Set graphs to 1 row x 2 columns
 layout(matrix(1:2, ncol = 2))
 
+# plot of autocorrelation in variances
+acf(resid(par.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "ACF")
+pacf(resid(par.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "pACF")
+
 # Plot the two smoothers
-plot(par.ar1$gam, shade = T, residuals = T, main = "PAR")
+plot(par.ar1.transect$gam, shade = T, residuals = T, ylab = "PFD (µmol m−2 s−1)", 
+     main = "PFD")
 
 # Reset the layout
 layout(1)
 
+# Plot residuals over time
+plot(par.ar1.transect$lme, resid(., type = "normalized") ~ minute)
+
+
+##### Plot the Model #####
+
 # Add predicted values to the dataset
-cbind(par.data, predict(par.ar1$gam, se.fit = T)) %>%
+cbind(par.data, predict(par.ar1.transect$gam, se.fit = T)) %>%
     
     # Plot the observed and predicted values
     ggplot(aes(x = hour)) +
@@ -626,38 +675,62 @@ cbind(par.data, predict(par.ar1$gam, se.fit = T)) %>%
             fill = "grey85", show.legend = F) +
     
         # Add observed points
-        geom_point(aes(y = par)) + 
+        geom_point(aes(y = par, color = transect), alpha = 0.05) + 
     
         # Add confidence intervals
-        geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
-            ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
+        #geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
+        #    ymin = fit - (se.fit * 1.96)), fill = "blue", alpha = 0.5) +
     
         # Add prediction line
-        geom_line(aes(y = fit), color = "red") + 
+        geom_line(aes(y = fit, color = transect)) + 
+    
+        # Set the colors and the legend title
+        scale_color_manual(name = "Transect", values = c("red", "blue")) + 
     
         # Add axis labels
-        xlab("Hour") + ylab("PAR") + 
+        xlab("Hour") + ylab("PFD (µmol m−2 s−1)") + 
     
         # Add theme
         ggplot.theme
 
+```
 
-##### Transect Order #####
+```{r 'Export_Transect_Coefficients', echo = F}
 
-# Fit a model with transect
-par.ar1.transect <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute) + transect, 
-    data = par.data, correlation = corAR1(form = ~ 1|t.order))
+# Format for export:
+# Variable Transect Estimate, StdErr.Lower, StdErr.Upper
 
-# Test whether there are differences in par between transects
-AICctab(par.uncorr$lme, par.ar1$lme, par.ar1.transect$lme, 
-    nobs = nrow(par.data))
 
-# Show the lme summary for the transect order
-summary(par.ar1.transect$lme)
+# Get the coefficients for the temperature model
+transect.coeff <- summary(temp.ar1.transect$gam)$p.table %>% data.frame %>% 
+    mutate(var = "Temperature", transect = c("Meadow","Woods")) %>%
 
+# Add the coefficients for the humidity model
+rbind(summary(humid.ar1.transect$gam)$p.table %>% data.frame %>% 
+    mutate(var = "Humidity", transect = c("Meadow","Woods"))) %>%
+
+# Add the coefficients for the VWC model
+rbind(summary(vwc.ar1.transect$gam)$p.table %>% data.frame %>% 
+    mutate(var = "VWC", transect = c("Meadow","Woods"))) %>%
+
+# Add the coefficients for the PAR model
+rbind(summary(par.ar1.transect$gam)$p.table %>% data.frame %>% 
+    mutate(var = "Par", transect = c("Meadow","Woods")))
+
+
+#mead.temp.df$mean <- mead.temp.df$Estimate
+#mead.temp.df$mean[2:length(mead.temp.df$Estimate)] <- mead.temp.df$Estimate[1] + #mead.temp.df$Estimate[2:length(mead.temp.df$Estimate)]
+
+#mead.temp.df$order <-  levels(as.factor(m.temp.data$order))
+
+#mead.temp.df <- mead.temp.df %>%
+    
+#    mutate(upper = mean + Std..Error, 
+#           lower = mean - Std..Error, 
+#           transect = "Meadow")
 
 ```
+
 
 
 ## Session Information
