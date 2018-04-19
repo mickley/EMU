@@ -608,6 +608,37 @@ AICctab(m.humid.uncorr$lme, m.humid.ar1$lme, m.humid.ar1.factor$lme,
 summary(m.humid.ar1.factor$gam)
 summary(m.humid.ar1.factor$lme)
 
+# Make plot of mean and SE of humid (from model), based on transect order
+
+mead.humid.df <- summary(m.humid.ar1.factor$gam)$p.table %>% data.frame
+mead.humid.df
+
+mead.humid.df$mean <- mead.humid.df$Estimate
+mead.humid.df$mean[2:length(mead.humid.df$Estimate)] <- mead.humid.df$Estimate[1] + mead.humid.df$Estimate[2:length(mead.humid.df$Estimate)]
+
+mead.humid.df$order <-  levels(as.factor(m.humid.data$order))
+
+mead.humid.df <- mead.humid.df %>%
+    
+    mutate(upper = mean + Std..Error, 
+           
+           lower = mean - Std..Error, 
+           
+           transect = "Meadow")
+
+
+# plot it
+
+mead.humid.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean))+
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
+    
+    ggplot.theme
+
 
 ```
 
@@ -706,6 +737,62 @@ AICctab(w.humid.uncorr$lme, w.humid.ar1$lme, w.humid.ar1.factor$lme,
 # Show the summary for the transect order
 summary(w.humid.ar1.factor$gam)
 summary(w.humid.ar1.factor$lme)
+
+
+# Make plot of mean and SE of humid (from model), based on transect order
+
+wood.humid.df <- summary(w.humid.ar1.factor$gam)$p.table %>% data.frame
+wood.humid.df
+
+wood.humid.df$mean <- wood.humid.df$Estimate
+wood.humid.df$mean[2:length(wood.humid.df$Estimate)] <- wood.humid.df$Estimate[1] + wood.humid.df$Estimate[2:length(wood.humid.df$Estimate)]
+
+wood.humid.df$order <-  levels(as.factor(w.humid.data$order))
+
+wood.humid.df <- wood.humid.df %>%
+    
+    mutate(upper = mean + Std..Error, 
+           
+           lower = mean - Std..Error, 
+           
+           transect = "Woods")
+
+# plot it
+
+wood.humid.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean))+
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
+    
+    ggplot.theme
+
+
+# Combine wood and meadow and plot together
+
+comb.humid.df <- rbind(mead.humid.df, wood.humid.df)
+
+
+comb.humid.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean, color = transect), size = 2) +
+    
+    geom_line(aes(x = order, y = mean, color = transect, group = transect), size = 1) +
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper, color = transect), width = 0.1) +
+    
+    scale_color_manual(name = "Transect", values = c("red", "blue")) +
+    
+    xlab("EMU Number") + 
+    
+    ylab("Relative Humidity") +
+    
+
+    ggplot.theme
 
 
 ```
@@ -820,6 +907,37 @@ summary(m.vwc.ar1.continuous$lme)
 # Likelihood ratio test/ANOVA shows that the factor model is better
 anova(m.vwc.ar1$lme, m.vwc.ar1.factor$lme)
 
+# Make plot of mean and SE of vwc (from model), based on transect order
+
+mead.vwc.df <- summary(m.vwc.ar1.factor$gam)$p.table %>% data.frame
+mead.vwc.df
+
+mead.vwc.df$mean <- mead.vwc.df$Estimate
+mead.vwc.df$mean[2:length(mead.vwc.df$Estimate)] <- mead.vwc.df$Estimate[1] + mead.vwc.df$Estimate[2:length(mead.vwc.df$Estimate)]
+
+mead.vwc.df$order <-  levels(as.factor(m.vwc.data$order))
+
+mead.vwc.df <- mead.vwc.df %>%
+    
+    mutate(upper = mean + Std..Error, 
+           
+           lower = mean - Std..Error, 
+           
+           transect = "Meadow")
+
+
+# plot it
+
+mead.vwc.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean))+
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
+    
+    ggplot.theme
+
 ```
 
 ### Woods VWC
@@ -923,6 +1041,62 @@ AICctab(w.vwc.uncorr$lme, w.vwc.ar1$lme, w.vwc.ar1.factor$lme,
 # Show the summary for the transect order
 summary(w.vwc.ar1.factor$gam)
 summary(w.vwc.ar1.factor$lme)
+
+
+# Make plot of mean and SE of vwc (from model), based on transect order
+
+wood.vwc.df <- summary(w.vwc.ar1.factor$gam)$p.table %>% data.frame
+wood.vwc.df
+
+wood.vwc.df$mean <- wood.vwc.df$Estimate
+wood.vwc.df$mean[2:length(wood.vwc.df$Estimate)] <- wood.vwc.df$Estimate[1] + wood.vwc.df$Estimate[2:length(wood.vwc.df$Estimate)]
+
+wood.vwc.df$order <-  levels(as.factor(w.vwc.data$order))
+
+wood.vwc.df <- wood.vwc.df %>%
+    
+    mutate(upper = mean + Std..Error, 
+           
+           lower = mean - Std..Error, 
+           
+           transect = "Woods")
+
+# plot it
+
+wood.vwc.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean))+
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
+    
+    ggplot.theme
+
+
+# Combine wood and meadow and plot together
+
+comb.vwc.df <- rbind(mead.vwc.df, wood.vwc.df)
+
+
+comb.vwc.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean, color = transect), size = 2) +
+    
+    geom_line(aes(x = order, y = mean, color = transect, group = transect), size = 1) +
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper, color = transect), width = 0.1) +
+    
+    scale_color_manual(name = "Transect", values = c("red", "blue")) +
+    
+    xlab("EMU Number") + 
+    
+    ylab("VWC") +
+    
+
+    ggplot.theme
 
 
 
@@ -1030,6 +1204,55 @@ AICctab(m.par.uncorr$lme, m.par.ar1$lme, m.par.ar1.factor$lme,
 summary(m.par.ar1.factor$gam)
 summary(m.par.ar1.factor$lme)
 
+# Make plot of mean and SE of par (from model), based on transect order
+
+mead.par.df <- summary(m.par.ar1.factor$gam)$p.table %>% data.frame
+mead.par.df
+
+mead.par.df$mean <- mead.par.df$Estimate
+mead.par.df$mean[2:length(mead.par.df$Estimate)] <- mead.par.df$Estimate[1] + mead.par.df$Estimate[2:length(mead.par.df$Estimate)]
+
+mead.par.df$order <-  levels(as.factor(m.par.data$order))
+
+mead.par.df <- mead.par.df %>%
+    
+    mutate(upper = mean + Std..Error, 
+           
+           lower = mean - Std..Error, 
+           
+           transect = "Meadow")
+
+# Make plot of mean and SE of par (from model), based on transect order
+
+mead.par.df <- summary(m.par.ar1.factor$gam)$p.table %>% data.frame
+mead.par.df
+
+mead.par.df$mean <- mead.par.df$Estimate
+mead.par.df$mean[2:length(mead.par.df$Estimate)] <- mead.par.df$Estimate[1] + mead.par.df$Estimate[2:length(mead.par.df$Estimate)]
+
+mead.par.df$order <-  levels(as.factor(m.par.data$order))
+
+mead.par.df <- mead.par.df %>%
+    
+    mutate(upper = mean + Std..Error, 
+           
+           lower = mean - Std..Error, 
+           
+           transect = "Meadow")
+
+
+# plot it
+
+mead.par.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean))+
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
+    
+    ggplot.theme
+
 ```
 
 ### Woods PAR
@@ -1130,6 +1353,62 @@ AICctab(w.par.uncorr$lme, w.par.ar1$lme, w.par.ar1.factor$lme,
 # Show the summary for the transect order
 summary(w.par.ar1.factor$gam)
 summary(w.par.ar1.factor$lme)
+
+# Make plot of mean and SE of par (from model), based on transect order
+
+wood.par.df <- summary(w.par.ar1.factor$gam)$p.table %>% data.frame
+wood.par.df
+
+wood.par.df$mean <- wood.par.df$Estimate
+wood.par.df$mean[2:length(wood.par.df$Estimate)] <- wood.par.df$Estimate[1] + wood.par.df$Estimate[2:length(wood.par.df$Estimate)]
+
+wood.par.df$order <-  levels(as.factor(w.par.data$order))
+
+wood.par.df <- wood.par.df %>%
+    
+    mutate(upper = mean + Std..Error, 
+           
+           lower = mean - Std..Error, 
+           
+           transect = "Woods")
+
+# plot it
+
+wood.par.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean))+
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
+    
+    ggplot.theme
+
+
+# Combine wood and meadow and plot together
+
+comb.par.df <- rbind(mead.par.df, wood.par.df)
+
+
+comb.par.df %>%
+    
+    ggplot()+
+    
+    geom_point(aes(x = order, y = mean, color = transect), size = 2) +
+    
+    geom_line(aes(x = order, y = mean, color = transect, group = transect), size = 1) +
+    
+    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper, color = transect), width = 0.1) +
+    
+    scale_color_manual(name = "Transect", values = c("red", "blue")) +
+    
+    xlab("EMU Number") + 
+    
+    ylab("PAR") +
+    
+
+    ggplot.theme
+
 
 ```
 
