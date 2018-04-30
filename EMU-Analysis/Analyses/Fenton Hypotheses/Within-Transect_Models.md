@@ -558,7 +558,7 @@ factor(order)3  0.13529269  1.0011388  0.13513880  8.925060e-01
 factor(order)4 -0.04116333  0.7140850 -0.05764486  9.540332e-01
 ```
 
-![](Within-Transect_Models_files/figure-html/Woods_Temp-5.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_Temp-6.png)<!-- -->
+![](Within-Transect_Models_files/figure-html/Woods_Temp-5.png)<!-- -->
 
 
 ## Humidity
@@ -790,7 +790,7 @@ Standardized Within-Group Residuals:
 Number of Observations: 5997
 Number of Groups: 1 
                  Estimate Std..Error    t.value     Pr...t..
-(Intercept)    77.4292490   1.467463 52.7640070 0.000000e+00
+(Intercept)    77.4292490   1.467463 52.7640069 0.000000e+00
 factor(order)3  0.9422413   2.032518  0.4635832 6.429634e-01
 factor(order)4  8.0000699   2.050311  3.9018812 9.650376e-05
 ```
@@ -1061,7 +1061,7 @@ factor(order)3 -2.068004   3.348761 -0.6175430 0.5368966
 factor(order)4  1.333362   2.346933  0.5681297 0.5699651
 ```
 
-![](Within-Transect_Models_files/figure-html/Woods_Humid-5.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_Humid-6.png)<!-- -->
+![](Within-Transect_Models_files/figure-html/Woods_Humid-5.png)<!-- -->
 
 
 ## Volumetric Water Content
@@ -1799,7 +1799,7 @@ factor(order)3 0.007003548 0.003003914  2.331474  1.975196e-02
 factor(order)4 0.028614978 0.003004262  9.524795  2.121545e-21
 ```
 
-![](Within-Transect_Models_files/figure-html/Woods_VWC-5.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_VWC-6.png)<!-- -->
+![](Within-Transect_Models_files/figure-html/Woods_VWC-5.png)<!-- -->
 
 
 ## Photosynthetically Active Radiation
@@ -2335,51 +2335,71 @@ factor(order)3  5.051529   2.617563  1.929859 5.365814e-02
 factor(order)4 18.738473   2.617876  7.157891 8.887608e-13
 ```
 
-![](Within-Transect_Models_files/figure-html/Woods_PAR-5.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_PAR-6.png)<!-- -->
+![](Within-Transect_Models_files/figure-html/Woods_PAR-5.png)<!-- -->
 
 
+
+```
+  X     Estimate  Std..Error    t.value      Pr...t..         var transect
+1 1  19.32071164  0.40059219  48.230375  0.000000e+00 Temperature   Meadow
+2 2  17.36923260  0.54506095  -3.580295  3.444576e-04 Temperature    Woods
+3 3  80.58038323  1.02522545  78.597721  0.000000e+00    Humidity   Meadow
+4 4  84.82245324  1.39557757   3.039652  2.373223e-03    Humidity    Woods
+5 5   0.22925152  0.01278042  17.937714  3.108755e-71         VWC   Meadow
+6 6   0.09405274  0.01726872  -7.829116  5.227441e-15         VWC    Woods
+7 7 348.50562491  9.68743759  35.975006 2.367309e-272         Par   Meadow
+8 8  47.36729865 13.23131483 -22.759516 7.864719e-113         Par    Woods
+        upper        lower
+1  19.7213038  18.92011946
+2  17.9142936  16.82417165
+3  81.6056087  79.55515779
+4  86.2180308  83.42687567
+5   0.2420319   0.21647110
+6   0.1113215   0.07678402
+7 358.1930625 338.81818732
+8  60.5986135  34.13598382
+```
+
+![](Within-Transect_Models_files/figure-html/within-transects plots-1.png)<!-- -->
 
 ## Session Information
 
 
 ```
-R version 3.4.3 (2017-11-30)
-Platform: x86_64-pc-linux-gnu (64-bit)
-Running under: Ubuntu Bionic Beaver (development branch)
+R version 3.4.2 (2017-09-28)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+Running under: Windows 7 x64 (build 7601) Service Pack 1
 
 Matrix products: default
-BLAS: /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.7.1
-LAPACK: /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.7.1
 
 locale:
- [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
- [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
- [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
- [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
- [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+[1] LC_COLLATE=English_United States.1252 
+[2] LC_CTYPE=English_United States.1252   
+[3] LC_MONETARY=English_United States.1252
+[4] LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.1252    
 
 attached base packages:
 [1] stats4    stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:
-[1] bindrcpp_0.2    dplyr_0.7.4     bbmle_1.0.20    mgcv_1.8-23    
-[5] nlme_3.1-131    lubridate_1.7.2 tidyr_0.8.0     cowplot_0.9.2  
+[1] bindrcpp_0.2    dplyr_0.7.4     bbmle_1.0.20    mgcv_1.8-20    
+[5] nlme_3.1-131    lubridate_1.6.0 tidyr_0.8.0     cowplot_0.7.0  
 [9] ggplot2_2.2.1  
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.15      pillar_1.1.0      compiler_3.4.3   
- [4] plyr_1.8.4        bindr_0.1         tools_3.4.3      
- [7] digest_0.6.15     evaluate_0.10.1   tibble_1.4.2     
+ [1] Rcpp_0.12.16      pillar_1.1.0      compiler_3.4.2   
+ [4] plyr_1.8.4        bindr_0.1         tools_3.4.2      
+ [7] digest_0.6.12     evaluate_0.10     tibble_1.4.2     
 [10] gtable_0.2.0      lattice_0.20-35   pkgconfig_2.0.1  
-[13] rlang_0.2.0       Matrix_1.2-12     yaml_2.1.16      
-[16] stringr_1.3.0     knitr_1.20        rprojroot_1.3-2  
-[19] grid_3.4.3        glue_1.2.0        R6_2.2.2         
-[22] rmarkdown_1.8     purrr_0.2.4       magrittr_1.5     
-[25] codetools_0.2-15  backports_1.1.2   scales_0.5.0     
+[13] rlang_0.2.0       Matrix_1.2-11     yaml_2.1.14      
+[16] stringr_1.3.0     knitr_1.17        rprojroot_1.2    
+[19] grid_3.4.2        glue_1.2.0        R6_2.2.1         
+[22] rmarkdown_1.7     purrr_0.2.4       magrittr_1.5     
+[25] codetools_0.2-15  backports_1.1.0   scales_0.5.0     
 [28] htmltools_0.3.6   assertthat_0.2.0  colorspace_1.3-2 
-[31] numDeriv_2016.8-1 stringi_1.1.6     lazyeval_0.2.1   
-[34] munsell_0.4.3    
+[31] numDeriv_2016.8-1 labeling_0.3      stringi_1.1.7    
+[34] lazyeval_0.2.1    munsell_0.4.3    
 ```
 
