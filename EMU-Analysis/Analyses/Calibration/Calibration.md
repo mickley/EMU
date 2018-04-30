@@ -1,5 +1,5 @@
 ---
-title: "LiCor Calibration"
+title: "Calibration"
 author: "James Mickley"
 output:
   html_document:
@@ -19,7 +19,7 @@ graphics: yes
 
 This analysis calibrates the light and soil moisture sensors.
 
-The light sensor is calibrated for PAR against a LiCor and compared to a Hobo, while the soil probes are calibrated against measured volumetric water content and compared to a Hobo.
+The light sensor is calibrated for PFD against a LiCor and compared to a Hobo, while the soil probes are calibrated against measured volumetric water content and compared to a Hobo.
 
 
 
@@ -99,7 +99,7 @@ The best calibration is the quadratic model, presented here alone
 
 ![](Calibration_files/figure-html/Light_quad_calibration-1.png)<!-- -->
 
-[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the quadratic light model and PAR values from the LiCor.  This gives a measure of accuracy.
+[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the quadratic light model and PFD values from the LiCor.  This gives a measure of accuracy.
 
 
 ```
@@ -107,7 +107,7 @@ The best calibration is the quadratic model, presented here alone
 1    2597.424         50.96493
 ```
 
-Graph showing the predicted values of PAR from the quadratic model graphed against the LiCor
+Graph showing the predicted values of FD from the quadratic model graphed against the LiCor
 
 ![](Calibration_files/figure-html/Light_predict-1.png)<!-- -->
 
@@ -351,11 +351,12 @@ Comparison of predicted values of VWC from the EMU sensors and VWC from the Hobo
 
 ```
 R version 3.4.3 (2017-11-30)
-Platform: x86_64-redhat-linux-gnu (64-bit)
-Running under: CentOS Linux 7 (Core)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu Bionic Beaver (development branch)
 
 Matrix products: default
-BLAS/LAPACK: /usr/lib64/R/lib/libRblas.so
+BLAS: /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.7.1
+LAPACK: /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.7.1
 
 locale:
  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
@@ -370,20 +371,20 @@ attached base packages:
 [8] base     
 
 other attached packages:
-[1] bindrcpp_0.2   dplyr_0.7.4    tidyr_0.7.2    bbmle_1.0.20  
-[5] ggpmisc_0.2.16 cowplot_0.9.1  ggplot2_2.2.1 
+[1] bindrcpp_0.2   dplyr_0.7.4    tidyr_0.8.0    bbmle_1.0.20  
+[5] ggpmisc_0.2.16 cowplot_0.9.2  ggplot2_2.2.1 
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.13      compiler_3.4.3    plyr_1.8.4       
- [4] bindr_0.1         tools_3.4.3       digest_0.6.12    
- [7] evaluate_0.10.1   tibble_1.3.4      gtable_0.2.0     
-[10] lattice_0.20-35   pkgconfig_2.0.1   rlang_0.1.4      
-[13] yaml_2.1.14       polynom_1.3-9     stringr_1.2.0    
-[16] knitr_1.17        tidyselect_0.2.3  rprojroot_1.2    
-[19] grid_3.4.3        glue_1.2.0        R6_2.2.2         
-[22] rmarkdown_1.8     purrr_0.2.4       magrittr_1.5     
-[25] backports_1.1.1   scales_0.5.0      codetools_0.2-15 
-[28] htmltools_0.3.6   assertthat_0.2.0  colorspace_1.3-2 
-[31] numDeriv_2016.8-1 labeling_0.3      stringi_1.1.6    
-[34] lazyeval_0.2.1    munsell_0.4.3    
+ [1] Rcpp_0.12.15      pillar_1.1.0      compiler_3.4.3   
+ [4] plyr_1.8.4        bindr_0.1         tools_3.4.3      
+ [7] digest_0.6.15     evaluate_0.10.1   tibble_1.4.2     
+[10] gtable_0.2.0      lattice_0.20-35   pkgconfig_2.0.1  
+[13] rlang_0.2.0       yaml_2.1.16       polynom_1.3-9    
+[16] stringr_1.3.0     knitr_1.20        rprojroot_1.3-2  
+[19] grid_3.4.3        tidyselect_0.2.3  glue_1.2.0       
+[22] R6_2.2.2          rmarkdown_1.8     purrr_0.2.4      
+[25] magrittr_1.5      backports_1.1.2   scales_0.5.0     
+[28] codetools_0.2-15  htmltools_0.3.6   assertthat_0.2.0 
+[31] colorspace_1.3-2  numDeriv_2016.8-1 labeling_0.3     
+[34] stringi_1.1.6     lazyeval_0.2.1    munsell_0.4.3    
 ```

@@ -1,5 +1,5 @@
 ---
-title: "LiCor Calibration"
+title: "Calibration"
 author: "James Mickley"
 output:
   html_document:
@@ -35,7 +35,7 @@ knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
 
 This analysis calibrates the light and soil moisture sensors.
 
-The light sensor is calibrated for PAR against a LiCor and compared to a Hobo, while the soil probes are calibrated against measured volumetric water content and compared to a Hobo.
+The light sensor is calibrated for PFD against a LiCor and compared to a Hobo, while the soil probes are calibrated against measured volumetric water content and compared to a Hobo.
 
 ```{r 'Main_Code', include = F, cache = F}
 
@@ -198,8 +198,8 @@ light %>%
             values = c("red", "blue")) +
     
         # Add axes
-        xlab(bquote(bold('LiCor PAR (µmol '~m^-2 ~s^-1~')'))) +
-        ylab(bquote(bold('Calibrated PAR (µmol '~m^-2 ~s^-1~')'))) +
+        xlab(bquote(bold('LiCor PFD (µmol '~m^-2 ~s^-1~')'))) +
+        ylab(bquote(bold('Calibrated PFD (µmol '~m^-2 ~s^-1~')'))) +
     
         # Add theme
         ggplot.theme + 
@@ -237,7 +237,7 @@ light %>% ggplot(aes(x = lux, y = umol)) +
                parse = T, size = 7, formula = y ~ poly(x, 2, raw = T)) +
     
         # Add axes
-        ylab(bquote(bold('LiCor PAR (µmol '~m^-2 ~s^-1~')'))) +
+        ylab(bquote(bold('LiCor PFD (µmol '~m^-2 ~s^-1~')'))) +
         xlab("Sensor Value (Lux)") +
     
         # Add theme
@@ -245,7 +245,7 @@ light %>% ggplot(aes(x = lux, y = umol)) +
 
 ```
 
-[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the quadratic light model and PAR values from the LiCor.  This gives a measure of accuracy.
+[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the quadratic light model and PFD values from the LiCor.  This gives a measure of accuracy.
 
 ```{r 'RMSE_Light', echo = F, comment = ""}
 
@@ -267,7 +267,7 @@ rms.light
 
 ```
 
-Graph showing the predicted values of PAR from the quadratic model graphed against the LiCor
+Graph showing the predicted values of FD from the quadratic model graphed against the LiCor
 
 ```{r 'Light_predict', echo = F}
 
@@ -283,8 +283,8 @@ light %>% ggplot(aes(x = umol, y = umol.quad)) +
         geom_point() +
     
         # Add axes
-        xlab(bquote(bold('LiCor PAR (µmol '~m^-2 ~s^-1~')'))) +
-        ylab(bquote(bold('Predicted Sensor PAR (µmol '~m^-2 ~s^-1~')'))) +
+        xlab(bquote(bold('LiCor PFD (µmol '~m^-2 ~s^-1~')'))) +
+        ylab(bquote(bold('Predicted Sensor PFD (µmol '~m^-2 ~s^-1~')'))) +
     
         # Add theme
         ggplot.theme
@@ -305,8 +305,8 @@ light.hobo.comp %>% ggplot(aes(x = umol, y = umol.quad)) +
         geom_abline(intercept = 0, slope = 1) + 
     
         # Add axes
-        xlab(bquote(bold('Hobo PAR (µmol '~m^-2 ~s^-1~')'))) +
-        ylab(bquote(bold('EMU PAR (µmol '~m^-2 ~s^-1~')'))) +
+        xlab(bquote(bold('Hobo PFD (µmol '~m^-2 ~s^-1~')'))) +
+        ylab(bquote(bold('EMU PFD (µmol '~m^-2 ~s^-1~')'))) +
     
         # Title
         ggtitle("Windowsill Calibration") + 
