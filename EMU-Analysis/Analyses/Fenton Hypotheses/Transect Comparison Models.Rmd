@@ -721,7 +721,7 @@ transect.coeff <- summary(temp.ar1.transect$gam)$p.table %>% data.frame %>%
     mutate(Estimate = ifelse(transect == "Meadow", Estimate, Estimate + lag(Estimate, 1)))
 
 # Write the transect coefficients to CSV
-write.csv(transect.coeff, "transect.coeff.csv")
+write.csv(transect.coeff, "Analyses/Fenton Hypotheses/transect.coeff.csv")
 
 
 ```
