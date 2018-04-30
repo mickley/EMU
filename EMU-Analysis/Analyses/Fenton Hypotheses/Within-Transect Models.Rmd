@@ -1177,7 +1177,7 @@ plot(m.par.ar1$lme, resid(.) ~ minute)
 layout(matrix(1:2, ncol = 2))
 
 # Plot the two smoothers
-plot(m.par.ar1$gam, shade = T, residuals = T, ylab = "PFD (µmol m−2s−1)", 
+plot(m.par.ar1$gam, shade = T, residuals = T, ylab = "PFD (µmol m−2 s−1)", 
      main = "Meadow PFD")
 
 # Reset the layout

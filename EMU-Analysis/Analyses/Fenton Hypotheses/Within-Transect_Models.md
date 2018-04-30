@@ -286,7 +286,13 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 5998
 Number of Groups: 1 
+                 Estimate Std..Error    t.value      Pr...t..
+(Intercept)    19.0513059  0.6450241 29.5358064 5.384916e-179
+factor(order)3  0.4862130  0.8934225  0.5442140  5.863147e-01
+factor(order)4 -0.2176798  0.9013076 -0.2415155  8.091640e-01
 ```
+
+![](Within-Transect_Models_files/figure-html/Meadow_Temp-5.png)<!-- -->
 
 ### Woods Temperature
 
@@ -545,7 +551,14 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 7078
 Number of Groups: 1 
+                  Estimate Std..Error     t.value      Pr...t..
+(Intercept)    17.51013811  0.5063908 34.57831322 5.416931e-242
+factor(order)2  0.11079059  0.7140038  0.15516807  8.766933e-01
+factor(order)3  0.13529269  1.0011388  0.13513880  8.925060e-01
+factor(order)4 -0.04116333  0.7140850 -0.05764486  9.540332e-01
 ```
+
+![](Within-Transect_Models_files/figure-html/Woods_Temp-5.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_Temp-6.png)<!-- -->
 
 
 ## Humidity
@@ -776,7 +789,13 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 5997
 Number of Groups: 1 
+                 Estimate Std..Error    t.value     Pr...t..
+(Intercept)    77.4292490   1.467463 52.7640070 0.000000e+00
+factor(order)3  0.9422413   2.032518  0.4635832 6.429634e-01
+factor(order)4  8.0000699   2.050311  3.9018812 9.650376e-05
 ```
+
+![](Within-Transect_Models_files/figure-html/Meadow_Humid-5.png)<!-- -->
 
 ### Woods Humidity
 
@@ -1035,7 +1054,14 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 7078
 Number of Groups: 1 
+                Estimate Std..Error    t.value  Pr...t..
+(Intercept)    83.852478   1.663826 50.3973775 0.0000000
+factor(order)2  3.099921   2.346660  1.3209927 0.1865468
+factor(order)3 -2.068004   3.348761 -0.6175430 0.5368966
+factor(order)4  1.333362   2.346933  0.5681297 0.5699651
 ```
+
+![](Within-Transect_Models_files/figure-html/Woods_Humid-5.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_Humid-6.png)<!-- -->
 
 
 ## Volumetric Water Content
@@ -1494,7 +1520,14 @@ m.vwc.ar1.factor$lme     2 29 -67355.88 -67156.25 33706.94 1 vs 2 23.84303
                      p-value
 m.vwc.ar1$lme               
 m.vwc.ar1.factor$lme  <.0001
+                    Estimate  Std..Error     t.value      Pr...t..
+(Intercept)     0.1914202714 0.008693279 22.01934173 4.924154e-104
+factor(order)2 -0.0007696305 0.011137765 -0.06910098  9.449112e-01
+factor(order)3  0.0371393521 0.011049389  3.36121334  7.800609e-04
+factor(order)4  0.1113487276 0.011072781 10.05607642  1.237864e-23
 ```
+
+![](Within-Transect_Models_files/figure-html/Meadow_VWC-5.png)<!-- -->
 
 ### Woods VWC
 
@@ -1759,7 +1792,14 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 8435
 Number of Groups: 1 
+                  Estimate  Std..Error   t.value      Pr...t..
+(Intercept)    0.066861968 0.002127152 31.432620 4.154601e-205
+factor(order)2 0.081794629 0.003003914 27.229348 1.629478e-156
+factor(order)3 0.007003548 0.003003914  2.331474  1.975196e-02
+factor(order)4 0.028614978 0.003004262  9.524795  2.121545e-21
 ```
+
+![](Within-Transect_Models_files/figure-html/Woods_VWC-5.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_VWC-6.png)<!-- -->
 
 
 ## Photosynthetically Active Radiation
@@ -2019,7 +2059,19 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 7216
 Number of Groups: 1 
+                  Estimate Std..Error    t.value      Pr...t..
+(Intercept)     393.225797   18.06553 21.7666343 8.919629e-102
+factor(order)2    3.587415   22.82002  0.1572048  8.750879e-01
+factor(order)3  -44.543618   22.63876 -1.9675821  4.915461e-02
+factor(order)4 -104.843788   22.64970 -4.6289267  3.740297e-06
+                  Estimate Std..Error    t.value      Pr...t..
+(Intercept)     393.225797   18.06553 21.7666343 8.919629e-102
+factor(order)2    3.587415   22.82002  0.1572048  8.750879e-01
+factor(order)3  -44.543618   22.63876 -1.9675821  4.915461e-02
+factor(order)4 -104.843788   22.64970 -4.6289267  3.740297e-06
 ```
+
+![](Within-Transect_Models_files/figure-html/Meadow_PAR-5.png)<!-- -->
 
 ### Woods PAR
 
@@ -2276,7 +2328,14 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 8435
 Number of Groups: 1 
+                Estimate Std..Error   t.value     Pr...t..
+(Intercept)    37.673204   1.850898 20.354012 6.381009e-90
+factor(order)2  2.924220   2.617563  1.117154 2.639609e-01
+factor(order)3  5.051529   2.617563  1.929859 5.365814e-02
+factor(order)4 18.738473   2.617876  7.157891 8.887608e-13
 ```
+
+![](Within-Transect_Models_files/figure-html/Woods_PAR-5.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_PAR-6.png)<!-- -->
 
 
 
