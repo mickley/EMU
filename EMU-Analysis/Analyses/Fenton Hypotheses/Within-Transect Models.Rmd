@@ -484,6 +484,7 @@ wood.temp.df %>%
 
 comb.temp.df <- rbind(mead.temp.df, wood.temp.df)
 
+comb.temp.plot <- 
 
 comb.temp.df %>%
     
@@ -774,6 +775,7 @@ wood.humid.df %>%
 
 comb.humid.df <- rbind(mead.humid.df, wood.humid.df)
 
+comb.humid.plot <- 
 
 comb.humid.df %>%
     
@@ -1078,6 +1080,7 @@ wood.vwc.df %>%
 
 comb.vwc.df <- rbind(mead.vwc.df, wood.vwc.df)
 
+comb.vwc.plot <- 
 
 comb.vwc.df %>%
     
@@ -1390,6 +1393,8 @@ wood.par.df %>%
 comb.par.df <- rbind(mead.par.df, wood.par.df)
 
 
+
+comb.par.plot <- 
 comb.par.df %>%
     
     ggplot()+
@@ -1405,7 +1410,6 @@ comb.par.df %>%
     xlab("EMU Number") + 
     
     ylab("PAR") +
-    
 
     ggplot.theme
 
@@ -1413,6 +1417,93 @@ comb.par.df %>%
 ```
 
 
+```{r 'within-transects plots', echo = F, comment = ""}
+
+g_legend<-function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+
+legend <- g_legend(comb.temp.plot)
+
+
+# read in coefficients from between transect model
+
+between <- read.csv("Analyses/Fenton Hypotheses/transect.coeff.csv")
+
+between$upper <- between$Estimate+between$Std..Error
+between$lower <- between$Estimate-between$Std..Error
+
+between
+
+
+comb.temp.plot <- 
+    
+comb.temp.plot  + 
+    
+    geom_point(data = filter(between, var=="Temperature"), aes(x = 4.5, y = Estimate, color = transect)) + 
+    
+    geom_vline(xintercept = 4.25, lty = 2) + 
+    
+    geom_errorbar(data = filter(between, var=="Temperature"), aes(x = 4.5, ymax = upper, 
+                                                                  ymin = lower, color = transect), width = 0.1)
+
+
+comb.humid.plot <- 
+    
+comb.humid.plot  + 
+    
+    geom_point(data = filter(between, var=="Humidity"), aes(x = 4.5, y = Estimate, color = transect)) + 
+    
+    geom_vline(xintercept = 4.25, lty = 2) + 
+    
+    geom_errorbar(data = filter(between, var=="Humidity"), aes(x = 4.5, ymax = upper, 
+                                                                  ymin = lower, color = transect), width = 0.1)
+
+
+comb.vwc.plot <- 
+    
+comb.vwc.plot  + 
+    
+    geom_point(data = filter(between, var=="VWC"), aes(x = 4.5, y = Estimate, color = transect)) + 
+    
+    geom_vline(xintercept = 4.25, lty = 2) + 
+    
+    geom_errorbar(data = filter(between, var=="VWC"), aes(x = 4.5, ymax = upper, 
+                                                                  ymin = lower, color = transect), width = 0.1)
+
+
+comb.par.plot <- 
+    
+comb.par.plot  + 
+    
+    geom_point(data = filter(between, var=="Par"), aes(x = 4.5, y = Estimate, color = transect)) + 
+    
+    geom_vline(xintercept = 4.25, lty = 2) + 
+    
+    geom_errorbar(data = filter(between, var=="Par"), aes(x = 4.5, ymax = upper, 
+                                                                  ymin = lower, color = transect), width = 0.1)
+
+
+plot_grid(comb.temp.plot + theme(axis.text.x = element_blank(), axis.title.x = element_blank(), legend.position="none"),  
+          
+          legend,
+          
+          comb.humid.plot + theme(axis.text.x = element_blank(), axis.title.x = element_blank(), legend.position="none"), 
+          
+          NULL,
+          
+          comb.vwc.plot + theme(axis.text.x = element_blank(), axis.title.x = element_blank(), legend.position="none"), 
+          
+          NULL,
+          
+          comb.par.plot + theme(legend.position="none"), ncol = 2, rel_widths = c(1, 0.2, 1, 0.2, 1, 0.2))
+
+
+
+
+```
 
 ## Session Information
 
