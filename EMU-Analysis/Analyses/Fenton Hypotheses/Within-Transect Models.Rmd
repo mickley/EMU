@@ -1409,7 +1409,7 @@ comb.par.df %>%
     
     xlab("EMU Number") + 
     
-    ylab("PAR") +
+    ylab("PFD") +
 
     ggplot.theme
 
@@ -1417,7 +1417,7 @@ comb.par.df %>%
 ```
 
 
-```{r 'within-transects plots', echo = F, comment = ""}
+```{r 'within-transects plots', echo = F, comment = "", fig.height = 10, fig.width = 8}
 
 g_legend<-function(a.gplot){
   tmp <- ggplot_gtable(ggplot_build(a.gplot))
