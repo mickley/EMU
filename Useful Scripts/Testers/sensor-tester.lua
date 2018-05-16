@@ -212,7 +212,7 @@ tmr.create():alarm(2000, tmr.ALARM_SINGLE, function()
         
         
            -- Check if the year is right
-           if year ~= 2017 then
+           if year ~= 2001 then
            
                 -- Print out the failure message
                 print("'DS3231: FAIL - " .. "Time Not Set'")
