@@ -91,7 +91,7 @@ end)
 
 
 -- Setup the Onewire bus
-ds18b20.setup(4)
+ds18b20.setup(ow)
 
 -- Check for DS18b20 sensors and read from them
 ds18b20.read(function(_, rom, _, temperature)
@@ -113,13 +113,7 @@ tmr.create():alarm(950, tmr.ALARM_SINGLE, function()
     else
 
         -- Print out the success message
-        print("--[[ Soil Temp: PASS - " .. device .. " | " .. temp .. " --]]")
-    
-        -- Print status
-        print("DS18b20 present | ", device, temp)
-
-        -- Reset the device variable
-        device = nil
+        print("--[[ Soil Temp: PASS - " .. device .. " | " .. tempS .. " --]]")
         
     end
 
@@ -212,7 +206,7 @@ tmr.create():alarm(2000, tmr.ALARM_SINGLE, function()
         
         
            -- Check if the year is right
-           if year ~= 2001 then
+           if year <= 2001 then
            
                 -- Print out the failure message
                 print("'DS3231: FAIL - " .. "Time Not Set'")
