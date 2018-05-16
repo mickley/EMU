@@ -28,7 +28,12 @@ bme280, i2c, node, tmr
 
 - 12/13/2017 JGM - Version 1.2:
     - Added delay timers to prevent crashing
-    
+
+- 5/16/2018 JGM - Version 1.3:
+    - Updated sensor tester for 2018
+    - Now uses firmware modules for bh1750 and ads1115
+    - Added tests for ws2812 LED and ds18b20 soil temp
+
 --]]
 
 
