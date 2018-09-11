@@ -6,7 +6,7 @@
 collectgarbage()
 
 -- Module to test memory usage for
-local test = "mathfunc"
+local test = "ads1115"
 
 -- Get the ram before loading the module
 local pre = node.heap()

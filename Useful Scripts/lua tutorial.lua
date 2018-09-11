@@ -130,7 +130,7 @@ end
 wifi.setmode(wifi.STATION)
 
 -- Now we're a wifi station, so tell the ESP8266 which network and password to connect to
-wifi.sta.config("elbrus", "plasticity")
+wifi.sta.config("network_name", "password")
 
 -- Connect to the network
 wifi.sta.connect()
@@ -162,8 +162,13 @@ gpio.write(4, gpio.HIGH)
 -- For most sensors, we'll have to tell them which pins will be SDA and SCL
 
 -- An example with the BME280 humidity, temperature and pressure sensor:
--- Use pin 2 for SDA and pin 1 for SCL.  This starts up the sensor
-bme280.init(2, 1)
+-- Use pin 2 for SDA and pin 1 for SCL.  
+
+-- First, we setup the I2C communication
+i2c.setup(0, 2, 1, i2c.SLOW) 
+
+-- Then we start up the sensor
+bme280.setup()
 
 -- Get the temperature and print it
 temp = bme280.temp()
