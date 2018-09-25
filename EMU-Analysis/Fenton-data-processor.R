@@ -136,8 +136,8 @@ data <- emu %>%
     mutate(vwc = soil.cal$intercept + soil.cal$soil * soil + 
         soil.cal$soil.squared * (soil ^ 2)) %>%
 
-    # Add par based on LiCor light calibration
-    mutate(par = light.cal$intercept + light.cal$lux * light + 
+    # Add pfd based on LiCor light calibration
+    mutate(pfd = light.cal$intercept + light.cal$lux * light + 
         light.cal$lux.squared * (light ^ 2)) %>%
 
     # Add iButton data
@@ -165,7 +165,7 @@ data <- emu %>%
     # Reorder columns
     select(site, transect, order, lat, long, source, type, emu, timestamp, day, hour, 
            minute, day.hr, day.min, temperature, 
-           humidity, vwc, par, light, soil, pressure, voltage) %>%
+           humidity, vwc, pfd, light, soil, pressure, voltage) %>%
             
     # Filter out all data points that aren't on a 15-minute interval
     filter(minute(timestamp) == 0 | minute(timestamp) == 15 | 
