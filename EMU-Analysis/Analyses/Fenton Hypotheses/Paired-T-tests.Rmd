@@ -8,6 +8,8 @@ output:
   html_notebook:
     theme: readable
 graphics: yes
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include = F}
@@ -43,9 +45,8 @@ The difference in means is relative to the Woods transect
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # Load Packages
+require(tidyverse) # Needed for data wrangling
 require(lubridate) # Needed for date wrangling
-library(tidyr) # Needed for data wrangling
-library(dplyr) # Needed for data wrangling, load last to avoid conflicts
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@ Data Preparation
@@ -156,36 +157,36 @@ fenton %>%
 
 
 
-### PAR
+### PFD
 
-The woods gets light than the meadow by about 243 µmol/m^2/s (17300 lux)
+The woods gets less light than the meadow by about 306 µmol/m^2/s
 
 ```{r 'PAR', echo = F, comment = ""}
 
 
-# Paired t-test for PAR
+# Paired t-test for PFD
 fenton %>%
     
     # Restrict to EMU data
     filter(source == "EMU") %>%
 
     # Select columns to work with
-    select(transect, order, timestamp, par) %>%
+    select(transect, order, timestamp, pfd) %>%
     
     # Spread, to make one column for each transect
-    spread(transect, par) %>%
+    spread(transect, pfd) %>%
     
     # Remove rows that don't have data for both transects
     filter(!is.na(Meadow), !is.na(Woods)) %>%
     
     # Gather the data back into a transect and par column
-    gather(transect, par, Meadow, Woods) %>%
+    gather(transect, pfd, Meadow, Woods) %>%
     
     # Reorder factor levels for transect
     mutate(transect = factor(transect, levels = c("Woods", "Meadow"))) %>%
     
     # Perform paired t-test
-    t.test(par ~ transect, paired = T, data = .)
+    t.test(pfd ~ transect, paired = T, data = .)
 
 
 ```
@@ -194,7 +195,7 @@ fenton %>%
 
 ### VWC
 
-The woods is drier than the meadow by about 0.19 ml/cm^3
+The woods is drier than the meadow by about 0.13 m^3/m^3
 
 ```{r 'VWC', echo = F, comment = ""}
 
