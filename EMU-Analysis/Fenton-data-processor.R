@@ -15,7 +15,7 @@ require(lubridate)
 
 #### Light & Soil Calibration Data ####
 
-soil.cal <- read.csv("Analyses/Calibration/soil-calibration.csv")
+soil.cal <- read.csv("Analyses/Calibration/gold-soil-calibration.csv")
 light.cal <- read.csv("Analyses/Calibration/light-calibration.csv")
 
 
@@ -25,7 +25,8 @@ light.cal <- read.csv("Analyses/Calibration/light-calibration.csv")
 datafolder = "Data/EMU-6-21/"
 
 # Read in the iButton data
-ibuttons <- read.csv("Data/EMU-6-21/ibuttons-combined.csv") %>%
+ibuttons <- read.csv("Data/EMU-6-21/ibuttons-combined.csv", 
+    stringsAsFactors = F) %>%
 
     # Add the source column and convert the timestamp to POSIXct class
     mutate(source = "iButton", 
@@ -59,50 +60,6 @@ for (file in emus) {
  
 # Read in the site data
 sites <- read.csv("Data/emu-sitedata-v2.csv", stringsAsFactors = F)
-
-
-#### Hobo Microstation Data ####
-
-
-# Get a list of EMU data files from the folder
-micros <- list.files(path = datafolder, pattern = "*_sta.csv")
-
-# Make an empty dataset
-micro = data.frame()
-
-# Process each data file one at a time
-for (file in micros) {
-    
-    # Get the transect name from the filename
-    name <- strsplit(file, "_")[[1]][1]
-    
-    # Read the datafile in from csv
-    tmp <- read.csv(paste(datafolder, file, sep = "")) %>% 
-        
-        # Add a column for the transect name
-        mutate(hobo = name)
-    
-    # Append this microstation's data onto the dataset
-    micro <- rbind(micro, tmp)
-    
-}
-
-# Wrangle the microstation data
-micro <- micro %>%
-    
-    # Add columns for site, data source, and transect order
-    mutate(source = "Hobo", type = "Micro") %>%
-
-    # Convert the timestamp to POSIXct class
-    mutate(Time = as.POSIXct(Time, format = "%m/%d/%y %I:%M:%S %p", 
-        tz = "America/New_York")) %>%
-    
-    # Get lat and long from sites csv
-    left_join(sites, by = "hobo") %>%
-    
-    # Select, rename, and order the columns
-    select(timestamp = Time, site, transect, order, lat, long, 
-        source, type, par = PAR, vwc = Water.Content)
 
 
 #### Hobo Pendant Data ####
@@ -150,14 +107,10 @@ pendant <- pendant %>%
 
 
 ##### Combine Datasets & Wrangle #####
-soilint = soil.cal$intercept
-soilint
+
 
 # Manipulate the data
-data <- 
-    
-    
-    emu %>%
+data <- emu %>%
     
     # Add source column
     mutate(source = "EMU", type = NA) %>%
@@ -188,7 +141,7 @@ data <-
         light.cal$lux.squared * (light ^ 2)) %>%
 
     # Add iButton data
-    bind_rows(ibuttons, micro, pendant) %>%
+    bind_rows(ibuttons, pendant) %>%
 
     # Add additional date/time columns
     mutate(
@@ -228,14 +181,6 @@ data <-
         # End time for the two Fenton transects
         (site == "Fenton" & 
              timestamp <= as.POSIXct("2017-06-21 12:45"))
-
-        # Start time for the Fenton transects
-        #(site == "Fenton" & 
-        #    timestamp >= as.POSIXct("2017-04-15 14:45")) |
-            
-        # Start time for the third HEEP transect
-        #(site == "HEEP" & transect == "Forest" & 
-        #    timestamp >= as.POSIXct("2017-05-02 10:00"))
         
         ) %>%
     
