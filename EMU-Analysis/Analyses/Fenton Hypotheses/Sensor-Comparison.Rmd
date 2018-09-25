@@ -8,6 +8,8 @@ output:
   html_notebook:
     theme: readable
 graphics: yes
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include = F}
@@ -31,7 +33,7 @@ knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
 
 ### Overview
 
-This analysis compares the results for the EMU, Hobo Pendant, Hobo Microstation, and iButton at the first site in each of the two transects.  
+This analysis compares the results for the EMU, Hobo Pendant, and iButton at the first site in each of the two transects.  
 
 
 ```{r 'Main_Code', include = F, cache = F}
@@ -41,11 +43,12 @@ This analysis compares the results for the EMU, Hobo Pendant, Hobo Microstation,
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # Load Packages
+require(tidyverse) # Needed for data wrangling
 require(cowplot) # Needed for publication-quality ggplots
 require(ggpmisc) # Needed for lm equations on graphs
-require(tidyr) # Needed for data wrangling
 require(lubridate) # Needed for date wrangling
-require(dplyr) # Needed for data wrangling, load last to avoid conflicts
+require(rgeos) # Required for dawn/dusk times
+require(maptools) # Required for dawn/dusk times
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@ Data Preparation
@@ -108,7 +111,7 @@ data.wide <- data %>%
 
     # Go to pure long format: all measurements in one column
     gather(measurement, value, temperature, humidity, vwc, 
-        par, light, soil, pressure) %>%
+        pfd, light, soil, pressure) %>%
     
     # Make a column that is both source & measurement type
     unite(measure, source, measurement) %>%
@@ -128,35 +131,51 @@ data.wide <- data %>%
 str(data.wide)
 
 
+# Dawn/Dusk times dataset
+# See: http://rstudio-pubs-static.s3.amazonaws.com/17282_9510673f07294de7905e11c7f2b043a5.html
 
-# Figure out hours for darkness
-darkness <- data.frame(dusk = seq(from = 8, to = 528, by = 24), 
-        dawn = seq(from = 17, to = 528, by = 24))
+# Create a coordinate for the Fenton site
+fenton.coord <- matrix(c(-72.238159, 41.825076), nrow = 1) %>%
+    SpatialPoints(proj4string = CRS("+proj=longlat +datum=WGS84"))
+
+# Create a data frame with dawn and dusk times with the following start/end dates for the project
+darkness <- data.frame(date = seq(from = as.POSIXct("2017-05-30"), 
+     to = as.POSIXct("2017-06-21"), by = "day")) %>%
+     
+     # Add dawn times
+     mutate(dawn.time = crepuscule(fenton.coord, date, solarDep = 6, 
+         direction = "dawn", POSIXct.out = TRUE)$time) %>%
+  
+     # Add dusk times
+     mutate(dusk.time = crepuscule(fenton.coord, date, solarDep = 6, 
+         direction = "dusk", POSIXct.out = TRUE)$time) %>%
+    
+     # Convert dawn and dusk times to hours since the start
+     mutate(
+         dusk = round(interval(as.POSIXct("2017-05-30 12:00"), lag(dusk.time)) /
+            dhours(1)),
+         dawn = round(interval(as.POSIXct("2017-05-30 12:00"), dawn.time) /
+            dhours(1))) %>%
+    
+    # Get rid of the first day
+    filter(date >= as.POSIXct("2017-05-31"))
 
 diff.darkness <- rbind(
     darkness %>% mutate(measurement = "Temperature", ymin = -14, ymax = 8), 
     darkness %>% mutate(measurement = "Humidity", ymin = -26, ymax = 37), 
-    darkness %>% mutate(measurement = "PAR", ymin = -1400, ymax = 10)) %>%
+    darkness %>% mutate(measurement = "PFD", ymin = -1665, ymax = 10),
+    darkness %>% mutate(measurement = "VWC", ymin = -0.18, ymax = 0)) %>%
     
     # Order the measurements
     mutate(measurement = factor(measurement, 
-        levels = c("Temperature", "Humidity", "PAR")))
+        levels = c("Temperature", "Humidity", "PFD", "VWC")))
 
-
-
-data.wide %>%
-
-    select(transect, order, timestamp, EMU_temperature, iButton_temperature, Hobo_temperature) %>%
-    
-    arrange(desc(EMU_temperature)) %>%
-    
-    head(20)
 
 ```
 
 ### Temperature
 
-Differences in temperature between EMUs and Hobos at all positions
+Differences in temperature between EMUs relative to Hobo Pendants at all positions in the transects.
 
 Hobos tend to read high, especially during the day.  Strongly suggests heat trapped from sun.
 
@@ -205,11 +224,11 @@ data.wide %>%
 
 ```
 
-Differences between EMUs and iButtons at the first position of each transect.
+Differences in temperature between EMUs relative to iButtons at the first position of each transect.
 
 Prior to hour 98, the iButtons had fallen on the ground, so you are seeing the difference between ground temperature and that of 10 cm above.
 
-There is minimal difference in temperature between the iButtons and Hobos on both transects from hour 98 to 190.  After 190, the meadow BME280 started failing, and I think those values may be bad.  
+There is minimal difference in temperature between the iButtons and Hobos on both transects from hour 98 to 190.  After 190, the meadow BME280 started failing. Subsequent values may be inaccurate.
 
 ```{r 'Temp_Diff_iButton', echo = F}
 
@@ -259,9 +278,9 @@ data.wide %>%
 
 ### Humidity
 
-Differences in humidity between EMUs and iButtons at the first position of each transect.
+Differences in humidity between EMUs relative to iButtons at the first position of each transect.
 
-Prior to hour 98, the iButtons had fallen on the ground, so you are seeing the difference between ground temperature and that of 10 cm above.
+Prior to hour 98, the iButtons had fallen on the ground, so this is the difference between ground temperature and that of 10 cm above.
 
 It looks like humidity is lower during the day with the iButton on the meadow transect, and generally higher at all times in the woods.
 
@@ -319,114 +338,7 @@ data.wide %>%
 ```
 
 
-### PAR
 
-Differences in PAR between EMUs and Hobo Microstations at the first position of each transect.
-
-The Hobo is consistently lower in the woods, even at night (why is that?). There's a lot of noise in the meadow during the day.
-
-
-
-```{r 'PAR_Diff', echo = F}
-
-# Set ymin and ymax limits separately for the two transects
-par.darkness <- rbind(
-    darkness %>% mutate(transect = "Meadow", ymin = -500, ymax = 1650),
-    darkness %>% mutate(transect = "Woods", ymin = -570, ymax = 320))
-
-# Plot relative differences in PAR
-data.wide %>%
-    
-    # Make a colummn for differences between iButton & EMU
-    mutate(Hobo_diff = Hobo_par - EMU_par) %>%
-    
-    # Get rid of missing data rows
-    filter(!is.na(Hobo_diff)) %>%
-    
-    # Plot differences over time
-    ggplot(aes(x = hour, y = Hobo_diff)) +
-    
-        # Make a facet for each transect
-        facet_wrap(~ transect, ncol = 1, scales = "free_y") + 
-
-        # Add rectangles for darkness
-        geom_rect(data = par.darkness, aes(xmin = dusk, xmax = dawn, 
-            ymin = ymin, ymax = ymax, x = NULL, y = NULL, color = NULL), 
-            fill = "grey85", show.legend = F) + 
-    
-        # Add points
-        geom_point(alpha = 0.3) +
-    
-        # Add horizontal line at zero
-        geom_hline(yintercept = 0, color = "red") + 
-    
-        # Add axis labels
-        xlab("Hour") + 
-        ylab(bquote(bold('PAR (µmol '~m^-2 ~s^-1~')'))) +
-    
-        # Title
-        ggtitle("Hobo PAR Difference") +
-    
-        # Add theme
-        ggplot.theme
-
-```
-
-
-
-
-### Volumetric Water Content
-
-Differences in Volumetric Water Content between EMUs and Hobo Microstations at the first position of each transect.
-
-The Hobo is always wetter in the woods, and it seems to be responding more strongly to rain than the EMU.
-
-In the meadow, the pattern is unpredictable, but the measurements are closer together.
-
-```{r 'VWC_Diff', echo = F}
-
-# Set ymin and ymax limits separately for the two transects
-vwc.darkness <- rbind(
-    darkness %>% mutate(transect = "Meadow", ymin = -.08, ymax = 0.04),
-    darkness %>% mutate(transect = "Woods", ymin = 0, ymax = 0.25))
-
-# Plot relative differences in PAR
-data.wide %>%
-    
-    # Make a colummn for differences between iButton & EMU
-    mutate(Hobo_diff = Hobo_vwc - EMU_vwc) %>%
-    
-    # Get rid of missing data rows
-    filter(!is.na(Hobo_diff)) %>%
-    
-    # Plot differences over time
-    ggplot(aes(x = hour, y = Hobo_diff)) +
-    
-        # Make a facet for each transect
-        facet_wrap(~ transect, ncol = 1, scales = "free_y") + 
-
-        # Add rectangles for darkness
-        geom_rect(data = vwc.darkness, aes(xmin = dusk, xmax = dawn, 
-            ymin = ymin, ymax = ymax, x = NULL, y = NULL, color = NULL), 
-            fill = "grey85", show.legend = F) + 
-    
-        # Add points
-        geom_point(alpha = 0.3) +
-    
-        # Add horizontal line at zero
-        geom_hline(yintercept = 0, color = "red") + 
-    
-        # Add axis labels
-        xlab("Hour") + 
-        ylab(bquote(bold('VWC'~(m^3/m^3)))) +
-
-        # Title
-        ggtitle("Hobo VWC Difference") +
-
-        # Add theme
-        ggplot.theme
-
-```
 
 ## Comparisons between EMU & iButton/Hobo Pendant for Woods transect
 
@@ -616,7 +528,7 @@ ibutton.temp <- data.wide %>%
         # Add theme
         ggplot.theme
 
-2+2
+
 ```
 
 Comparing iButtons to Hobos, we see that hobos read too high for anything over about 10C.  Again evidence of self-heating.
@@ -665,6 +577,9 @@ hobo.ibutton.temp <- data.wide %>%
     
         # Add theme
         ggplot.theme
+
+# Display
+hobo.ibutton.temp
 
 ```
 
@@ -787,117 +702,6 @@ ggdraw() +
 
 ```
 
-
-### PAR
-
-Hobos tend to read too low in low light, and high in high light (sometimes wildly too high).
-
-Roughly the same pattern in both transects.
-
-
-```{r 'PAR_Comp', echo = F, fig.width=10}
-
-
-# Plot relative differences in temperature
-data.wide %>%
-
-    # Only show the woods transect at the first site
-    filter(order == 1, !is.na(EMU_par), !is.na(Hobo_par)) %>%
-    
-    # Plot differences over time
-    ggplot(aes(x = Hobo_par, y = EMU_par)) +
-    
-        # Make a facet for each transect
-        facet_wrap(~ transect, ncol = 2) + 
-
-        # Add points
-        geom_point(color = "blue", alpha = 0.6) +
-    
-        # Add horizontal line at zero
-        geom_abline(intercept = 0, slope = 1) + 
-    
-        # Add linear model
-        geom_smooth(method = "lm", color = "red", se = F) + 
-    
-        # Add the equation
-        stat_poly_eq(aes(label = ..eq.label..),
-               eq.x.rhs = "italic(x)", coef.digits = 4, label.x = 500, 
-               label.y = 1500, parse = T, size = 7,
-               formula = y ~ x) +
-        
-        # Add the R^2
-        stat_poly_eq(aes(label = ..rr.label..),
-               rr.digits = 3, label.x = 500, label.y = 1400,
-               parse = T, size = 7, formula = y ~ x) +
-    
-        # Add axis labels
-        xlab(bquote(bold('Hobo PAR (µmol '~m^-2 ~s^-1~')'))) +
-        ylab(bquote(bold('EMU PAR (µmol '~m^-2 ~s^-1~')'))) +
-    
-        # Add theme
-        ggplot.theme
-
-
-```
-
-
-
-### Volumetric Water Content
-
-Very strange patterns here, and not at all what we saw during calibration.
-
-In the meadow (which is wet), the hobo is mostly reading lower than the EMU, but sometimes it's higher.  While the trend is positive, the high readings on the Hobo are not at the higest readings for the EMU, but somewhere in the middle.
-
-In the woods, the EMU read very low, while there was a full range for the Hobo.  
-This was true of 3 of 4 EMUs along the transect.  Maybe it's a depth issue? Deeper soil, which the Hobo could access would be wetter.  Or perhaps it's a coarse soil issue?
-
-```{r 'VWC_Comp', echo = F, fig.width=10}
-
-
-# Plot relative differences in temperature
-data.wide %>%
-
-    # Only show the woods transect at the first site
-    filter(order == 1, !is.na(EMU_par), !is.na(Hobo_par)) %>%
-    
-    # Plot differences over time
-    ggplot(aes(x = Hobo_vwc, y = EMU_vwc)) +
-    
-        # Make a facet for each transect
-        facet_wrap(~ transect, ncol = 2) + 
-
-        # Add points
-        geom_point(color = "blue", alpha = 0.6) +
-    
-        # Add horizontal line at zero
-        geom_abline(intercept = 0, slope = 1) + 
-    
-        # Add linear model
-        geom_smooth(method = "lm", color = "red", se = F) + 
-    
-        # Add the equation
-        stat_poly_eq(aes(label = ..eq.label..),
-               eq.x.rhs = "italic(x)", coef.digits = 4, label.x = 0.22, 
-               label.y = 0.13, parse = T, size = 7,
-               formula = y ~ x) +
-        
-        # Add the R^2
-        stat_poly_eq(aes(label = ..rr.label..),
-               rr.digits = 3, label.x = 0.22, label.y = 0.113,
-               parse = T, size = 7, formula = y ~ x) +
-
-        #xlim(0, 0.3) + ylim(0, 0.08) + 
-    
-        # Add axis labels
-        xlab(bquote(bold('Hobo VWC'~(m^3/m^3)))) +
-        ylab(bquote(bold('EMU VWC'~(m^3/m^3)))) +
-    
-        # Add theme
-        ggplot.theme
-
-```
-
-
 ### Session Information
 
 ```{r 'Session_Info', echo = F, comment = ""}
@@ -907,12 +711,3 @@ sessionInfo()
 
 
 ```
-
-
-
-
-
-
-
-
-
