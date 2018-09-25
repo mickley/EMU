@@ -21,9 +21,9 @@ editor_options:
 
 This analysis is looking for microenvironmental differences or gradients between transects.  It's a more involved version of the [Paired T-Test analysis](Paired-T-tests.md).
 
-We're using this [GAM approach](http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/).  In this approach, there are two smoothers (as Robi suggested).  One smoother is a cubic spline that accounts for intra-day variation.  Then a second spline is fitted to account for temporal variation that is not intra-day.  
+We're using this [GAM approach](http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/).  In this approach, there are two smoothers.  One smoother is a cubic spline that accounts for intra-day variation.  Then a second spline is fitted to account for temporal variation that is not intra-day.  
 
-Readings have temporal autocorrelation, therefore, we add an autoregressive moving average correlation structure (corAR1). We set the form here to account for autocorrelation separately for each transect position, treating positions and transects as independent.  In every case, accounting for autocorrelation improves the models considerably, however, significant autocorrelation is still unaccounted for.  Zuur et. al. say that it's usually not worth finding the optimal autocorrelation structure.  
+Readings have temporal autocorrelation, therefore, we add an autoregressive moving average correlation structure (corAR1). We set the form here to account for autocorrelation separately for each transect position, treating positions and transects as independent.  In every case, accounting for autocorrelation improves the models considerably, however, some autocorrelation is still unaccounted for.  Zuur et. al. say that it's usually not worth finding the optimal autocorrelation structure.  
 
 After all temporal effects are accounted for, we test our expectations:
 
@@ -640,23 +640,23 @@ Number of Groups: 1
 
 The model that includes transect is better than the base temporal model for PFD.
 
-After accounting for temporal variation, and autocorrelation, the woods gets 300.7 µmol/m<sup>2</sup>/s less light than the meadow.  This is close to the paired t-test result: 243 µmol/m<sup>2</sup>/s less light.
+After accounting for temporal variation, and autocorrelation, the woods gets 300.7 µmol/m<sup>2</sup>/s less light than the meadow.  This is close to the paired t-test result: 306 µmol/m<sup>2</sup>/s less light.
 
 
-![](Transect_Comparison_Models_files/figure-html/PAR_Comp-1.png)<!-- -->
+![](Transect_Comparison_Models_files/figure-html/PFD_Comp-1.png)<!-- -->
 
 ```
                                dAICc   df
-par.ar1.transect$lme               0.0 27
-par.ar1.transect.penalized$lme    14.5 7 
-par.ar1$lme                      388.9 26
-par.uncorr$lme                 20478.7 5 
+pfd.ar1.transect$lme               0.0 27
+pfd.ar1.transect.penalized$lme    14.5 7 
+pfd.ar1$lme                      388.9 26
+pfd.uncorr$lme                 20478.7 5 
 
 Family: gaussian 
 Link function: identity 
 
 Formula:
-par ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T) + 
+pfd ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T) + 
     transect
 
 Parametric coefficients:
@@ -669,7 +669,7 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 Approximate significance of smooth terms:
              edf Ref.df      F  p-value    
 s(day.min) 16.91     94 11.369  < 2e-16 ***
-s(minute)  22.00     22  5.312 7.53e-15 ***
+s(minute)  22.00     22  5.312 7.49e-15 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -829,7 +829,7 @@ Number of Observations: 15651
 Number of Groups: 1 
 ```
 
-![](Transect_Comparison_Models_files/figure-html/PAR_Comp-2.png)<!-- -->![](Transect_Comparison_Models_files/figure-html/PAR_Comp-3.png)<!-- -->![](Transect_Comparison_Models_files/figure-html/PAR_Comp-4.png)<!-- -->![](Transect_Comparison_Models_files/figure-html/PAR_Comp-5.png)<!-- -->
+![](Transect_Comparison_Models_files/figure-html/PFD_Comp-2.png)<!-- -->![](Transect_Comparison_Models_files/figure-html/PFD_Comp-3.png)<!-- -->![](Transect_Comparison_Models_files/figure-html/PFD_Comp-4.png)<!-- -->![](Transect_Comparison_Models_files/figure-html/PFD_Comp-5.png)<!-- -->
 
 
 
@@ -840,42 +840,47 @@ Number of Groups: 1
 
 ```
 R version 3.4.3 (2017-11-30)
-Platform: x86_64-pc-linux-gnu (64-bit)
-Running under: Ubuntu Bionic Beaver (development branch)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+Running under: Windows 7 x64 (build 7601) Service Pack 1
 
 Matrix products: default
-BLAS: /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.7.1
-LAPACK: /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.7.1
 
 locale:
- [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
- [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
- [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
- [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
- [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+[1] LC_COLLATE=English_United States.1252 
+[2] LC_CTYPE=English_United States.1252   
+[3] LC_MONETARY=English_United States.1252
+[4] LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.1252    
 
 attached base packages:
 [1] stats4    stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:
-[1] bindrcpp_0.2    dplyr_0.7.4     bbmle_1.0.20    mgcv_1.8-23    
-[5] nlme_3.1-131    lubridate_1.7.2 tidyr_0.8.0     cowplot_0.9.2  
-[9] ggplot2_2.2.1  
+ [1] bindrcpp_0.2.2  maptools_0.9-4  sp_1.3-1        rgeos_0.3-28   
+ [5] bbmle_1.0.20    mgcv_1.8-22     nlme_3.1-131    lubridate_1.7.4
+ [9] forcats_0.3.0   stringr_1.3.0   dplyr_0.7.6     purrr_0.2.4    
+[13] readr_1.1.1     tidyr_0.8.0     tibble_1.4.2    tidyverse_1.2.1
+[17] cowplot_0.9.3   ggplot2_3.0.0  
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.15      pillar_1.1.0      compiler_3.4.3   
- [4] plyr_1.8.4        bindr_0.1         tools_3.4.3      
- [7] digest_0.6.15     evaluate_0.10.1   tibble_1.4.2     
-[10] gtable_0.2.0      lattice_0.20-35   pkgconfig_2.0.1  
-[13] rlang_0.2.0       Matrix_1.2-12     yaml_2.1.16      
-[16] stringr_1.3.0     knitr_1.20        rprojroot_1.3-2  
-[19] grid_3.4.3        glue_1.2.0        R6_2.2.2         
-[22] rmarkdown_1.8     purrr_0.2.4       magrittr_1.5     
-[25] codetools_0.2-15  backports_1.1.2   scales_0.5.0     
-[28] htmltools_0.3.6   assertthat_0.2.0  colorspace_1.3-2 
-[31] numDeriv_2016.8-1 stringi_1.1.6     lazyeval_0.2.1   
-[34] munsell_0.4.3    
+ [1] tidyselect_0.2.4  reshape2_1.4.3    haven_1.1.1      
+ [4] lattice_0.20-35   colorspace_1.3-2  htmltools_0.3.6  
+ [7] yaml_2.1.18       rlang_0.2.2       pillar_1.2.2     
+[10] foreign_0.8-69    glue_1.2.0        withr_2.1.2      
+[13] modelr_0.1.1      readxl_1.1.0      bindr_0.1.1      
+[16] plyr_1.8.4        munsell_0.4.3     gtable_0.2.0     
+[19] cellranger_1.1.0  rvest_0.3.2       codetools_0.2-15 
+[22] psych_1.8.4       evaluate_0.10.1   labeling_0.3     
+[25] knitr_1.20        parallel_3.4.3    broom_0.4.4      
+[28] Rcpp_0.12.16      scales_0.5.0      backports_1.1.2  
+[31] jsonlite_1.5      mnormt_1.5-5      hms_0.4.2        
+[34] digest_0.6.15     stringi_1.1.7     numDeriv_2016.8-1
+[37] grid_3.4.3        rprojroot_1.3-2   cli_1.0.0        
+[40] tools_3.4.3       magrittr_1.5      lazyeval_0.2.1   
+[43] crayon_1.3.4      pkgconfig_2.0.1   Matrix_1.2-12    
+[46] xml2_1.2.0        assertthat_0.2.0  rmarkdown_1.9    
+[49] httr_1.3.1        rstudioapi_0.7    R6_2.2.2         
+[52] compiler_3.4.3   
 ```
 

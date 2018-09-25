@@ -38,9 +38,9 @@ knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
 
 This analysis is looking for microenvironmental differences or gradients between transects.  It's a more involved version of the [Paired T-Test analysis](Paired-T-tests.md).
 
-We're using this [GAM approach](http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/).  In this approach, there are two smoothers (as Robi suggested).  One smoother is a cubic spline that accounts for intra-day variation.  Then a second spline is fitted to account for temporal variation that is not intra-day.  
+We're using this [GAM approach](http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/).  In this approach, there are two smoothers.  One smoother is a cubic spline that accounts for intra-day variation.  Then a second spline is fitted to account for temporal variation that is not intra-day.  
 
-Readings have temporal autocorrelation, therefore, we add an autoregressive moving average correlation structure (corAR1). We set the form here to account for autocorrelation separately for each transect position, treating positions and transects as independent.  In every case, accounting for autocorrelation improves the models considerably, however, significant autocorrelation is still unaccounted for.  Zuur et. al. say that it's usually not worth finding the optimal autocorrelation structure.  
+Readings have temporal autocorrelation, therefore, we add an autoregressive moving average correlation structure (corAR1). We set the form here to account for autocorrelation separately for each transect position, treating positions and transects as independent.  In every case, accounting for autocorrelation improves the models considerably, however, some autocorrelation is still unaccounted for.  Zuur et. al. say that it's usually not worth finding the optimal autocorrelation structure.  
 
 After all temporal effects are accounted for, we test our expectations:
 
@@ -60,12 +60,13 @@ After all temporal effects are accounted for, we test our expectations:
 
 # Load Packages
 require(cowplot) # Needed for publication-quality ggplots
-require(tidyr) # Needed for data wrangling
+require(tidyverse) # Needed for data wrangling
 require(lubridate) # Needed for date wrangling
 require(mgcv) # Needed for gams
 require(bbmle) # Needed for AICc
-#require(forecast) # Needed for auto.arima(), find optimal ARMA structure
-require(dplyr) # Needed for data wrangling, load last to avoid conflicts
+require(rgeos) # Required for dawn/dusk times
+require(maptools) # Required for dawn/dusk times
+
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@ Data Preparation
@@ -157,21 +158,44 @@ vwc.data <- fenton %>%
     # Filter only EMU data with a vwc
     filter(source == "EMU", !is.na(vwc))
 
-#### PAR #####
+#### PFD #####
 
 
-# Make a dataset for the EMU par
-par.data <- fenton %>%
+# Make a dataset for the EMU pfd
+pfd.data <- fenton %>%
 
-    # Filter only EMU data with a par
-    filter(source == "EMU", !is.na(par))
+    # Filter only EMU data with a pfd
+    filter(source == "EMU", !is.na(pfd))
 
 
-#### Darkness Hours #####
+# Dawn/Dusk times dataset
+# See: http://rstudio-pubs-static.s3.amazonaws.com/17282_9510673f07294de7905e11c7f2b043a5.html
 
-# Figure out hours for darkness
-darkness <- data.frame(dusk = seq(from = 8, to = 528, by = 24), 
-    dawn = seq(from = 17, to = 528, by = 24))
+# Create a coordinate for the Fenton site
+fenton.coord <- matrix(c(-72.238159, 41.825076), nrow = 1) %>%
+    SpatialPoints(proj4string = CRS("+proj=longlat +datum=WGS84"))
+
+# Create a data frame with dawn and dusk times with the following start/end dates for the project
+darkness <- data.frame(date = seq(from = as.POSIXct("2017-05-30"), 
+     to = as.POSIXct("2017-06-21"), by = "day")) %>%
+     
+     # Add dawn times
+     mutate(dawn.time = crepuscule(fenton.coord, date, solarDep = 6, 
+         direction = "dawn", POSIXct.out = TRUE)$time) %>%
+  
+     # Add dusk times
+     mutate(dusk.time = crepuscule(fenton.coord, date, solarDep = 6, 
+         direction = "dusk", POSIXct.out = TRUE)$time) %>%
+    
+     # Convert dawn and dusk times to hours since the start
+     mutate(
+         dusk = round(interval(as.POSIXct("2017-05-30 12:00"), lag(dusk.time)) /
+            dhours(1)),
+         dawn = round(interval(as.POSIXct("2017-05-30 12:00"), dawn.time) /
+            dhours(1))) %>%
+    
+    # Get rid of the first day
+    filter(date >= as.POSIXct("2017-05-31"))
 
 
 
@@ -205,10 +229,6 @@ pacf(resid(temp.uncorr$lme), lag.max = 96, main = "pACF")
 # Reset the layout
 layout(1)
 
-# Find the optimal ARMA
-#auto.arima(resid(temp.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
-
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
@@ -220,15 +240,6 @@ temp.ar1 <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) +
 
 # Compare models
 #AICctab(temp.uncorr$lme, temp.ar1$lme, nobs = nrow(temp.data))
-
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(temp.ar1$lme)
-#summary(temp.ar1$gam)
 
 
 ##### Transect Order #####
@@ -335,10 +346,6 @@ pacf(resid(humid.uncorr$lme), lag.max = 96, main = "pACF")
 # Reset the layout
 layout(1)
 
-# Find the optimal ARMA
-#auto.arima(resid(humid.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
-
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
@@ -350,15 +357,6 @@ humid.ar1 <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) +
 
 # Compare models
 #AICctab(humid.uncorr$lme, humid.ar1$lme, nobs = nrow(humid.data))
-
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(humid.ar1$lme)
-#summary(humid.ar1$gam)
 
 
 ##### Transect Order #####
@@ -465,10 +463,6 @@ pacf(resid(vwc.uncorr$lme), lag.max = 96, main = "pACF")
 # Reset the layout
 layout(1)
 
-# Find the optimal ARMA
-#auto.arima(resid(vwc.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
-
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
@@ -480,15 +474,6 @@ vwc.ar1 <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) +
 
 # Compare models
 #AICctab(vwc.uncorr$lme, vwc.ar1$lme, nobs = nrow(vwc.data))
-
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(m.vwc.ar1$lme)
-#summary(vwc.ar1$gam)
 
 
 ##### Transect Order #####
@@ -571,16 +556,16 @@ cbind(vwc.data, predict(vwc.ar1.transect$gam, se.fit = T)) %>%
 
 The model that includes transect is better than the base temporal model for PFD.
 
-After accounting for temporal variation, and autocorrelation, the woods gets 300.7 µmol/m<sup>2</sup>/s less light than the meadow.  This is close to the paired t-test result: 243 µmol/m<sup>2</sup>/s less light.
+After accounting for temporal variation, and autocorrelation, the woods gets 300.7 µmol/m<sup>2</sup>/s less light than the meadow.  This is close to the paired t-test result: 306 µmol/m<sup>2</sup>/s less light.
 
 
-```{r 'PAR_Comp', echo = F, comment = ""}
+```{r 'PFD_Comp', echo = F, comment = ""}
 
 # Construct an uncorrelated gam with the two smoothers
 # Use fixed degree of freedom regression spline instead of penalized for inter-day
 # This improves the model considerably: better residuals, higher R2, lower AIC
-par.uncorr <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute), data = par.data)
+pfd.uncorr <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute), data = pfd.data)
 
 ##### Autocorrelation #####
 
@@ -588,57 +573,44 @@ par.uncorr <- gamm(par ~  s(day.min, bs = "cc", k = 96) +
 layout(matrix(1:2, ncol = 2))
 
 # plot of autocorrelation in variances
-acf(resid(par.uncorr$lme), lag.max = 96, main = "ACF")
-pacf(resid(par.uncorr$lme), lag.max = 96, main = "pACF")
+acf(resid(pfd.uncorr$lme), lag.max = 96, main = "ACF")
+pacf(resid(pfd.uncorr$lme), lag.max = 96, main = "pACF")
 
 # Reset the layout
 layout(1)
-
-# Find the optimal ARMA
-#auto.arima(resid(par.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
 
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
 
 # p = 1, q = 0 (AR1), grouped by order and transect
-par.ar1 <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute, k = 23, fx = T), data = par.data,
+pfd.ar1 <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute, k = 23, fx = T), data = pfd.data,
     correlation = corAR1(form = ~ 1|t.order))
 
 # Compare models
-#AICctab(par.uncorr$lme, par.ar1$lme, nobs = nrow(par.data))
-
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(par.ar1$lme)
-#summary(par.ar1$gam)
+#AICctab(pfd.uncorr$lme, pfd.ar1$lme, nobs = nrow(pfd.data))
 
 
 ##### Transect Order #####
 
 # Fit a model with transect
-par.ar1.transect <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+pfd.ar1.transect <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
     s(minute, k = 23, fx = T) + transect, 
-    data = par.data, correlation = corAR1(form = ~ 1|t.order))
+    data = pfd.data, correlation = corAR1(form = ~ 1|t.order))
 
 # Fit a model with transect and with penalized splines
-par.ar1.transect.penalized <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+pfd.ar1.transect.penalized <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
     s(minute) + transect, 
-    data = par.data, correlation = corAR1(form = ~ 1|t.order))
+    data = pfd.data, correlation = corAR1(form = ~ 1|t.order))
 
-# Test whether there are differences in par between transects
-AICctab(par.uncorr$lme, par.ar1$lme, par.ar1.transect$lme, 
-    par.ar1.transect.penalized$lme, nobs = nrow(par.data))
+# Test whether there are differences in pfd between transects
+AICctab(pfd.uncorr$lme, pfd.ar1$lme, pfd.ar1.transect$lme, 
+    pfd.ar1.transect.penalized$lme, nobs = nrow(pfd.data))
 
 # Show the summary for the transect order
-summary(par.ar1.transect$gam)
-summary(par.ar1.transect$lme)
+summary(pfd.ar1.transect$gam)
+summary(pfd.ar1.transect$lme)
 
 
 ##### Model Diagnostics #####
@@ -647,24 +619,24 @@ summary(par.ar1.transect$lme)
 layout(matrix(1:2, ncol = 2))
 
 # plot of autocorrelation in variances
-acf(resid(par.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "ACF")
-pacf(resid(par.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "pACF")
+acf(resid(pfd.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "ACF")
+pacf(resid(pfd.ar1.transect$lme, type = "normalized"), lag.max = 96, main = "pACF")
 
 # Plot the two smoothers
-plot(par.ar1.transect$gam, shade = T, residuals = T, ylab = "PFD (µmol m−2 s−1)", 
+plot(pfd.ar1.transect$gam, shade = T, residuals = T, ylab = "PFD (µmol m−2 s−1)", 
      main = "PFD")
 
 # Reset the layout
 layout(1)
 
 # Plot residuals over time
-plot(par.ar1.transect$lme, resid(., type = "normalized") ~ minute)
+plot(pfd.ar1.transect$lme, resid(., type = "normalized") ~ minute)
 
 
 ##### Plot the Model #####
 
 # Add predicted values to the dataset
-cbind(par.data, predict(par.ar1.transect$gam, se.fit = T)) %>%
+cbind(pfd.data, predict(pfd.ar1.transect$gam, se.fit = T)) %>%
     
     # Plot the observed and predicted values
     ggplot(aes(x = hour)) +
@@ -675,7 +647,7 @@ cbind(par.data, predict(par.ar1.transect$gam, se.fit = T)) %>%
             fill = "grey85", show.legend = F) +
     
         # Add observed points
-        geom_point(aes(y = par, color = transect), alpha = 0.05) + 
+        geom_point(aes(y = pfd, color = transect), alpha = 0.05) + 
     
         # Add confidence intervals
         #geom_ribbon(aes(ymax = fit + (se.fit * 1.96), 
@@ -712,9 +684,9 @@ transect.coeff <- summary(temp.ar1.transect$gam)$p.table %>% data.frame %>%
     rbind(summary(vwc.ar1.transect$gam)$p.table %>% data.frame %>% 
         mutate(var = "VWC", transect = c("Meadow","Woods"))) %>%
 
-    # Add the coefficients for the PAR model
-    rbind(summary(par.ar1.transect$gam)$p.table %>% data.frame %>% 
-        mutate(var = "Par", transect = c("Meadow","Woods"))) %>%
+    # Add the coefficients for the PFD model
+    rbind(summary(pfd.ar1.transect$gam)$p.table %>% data.frame %>% 
+        mutate(var = "PFD", transect = c("Meadow","Woods"))) %>%
     
     # Adjust the coefficients for the Woods by adding the meadow (intercept)
     # But only do this for the Woods, not the meadow, which is already correct
