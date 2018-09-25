@@ -9,6 +9,8 @@ output:
   html_notebook:
     theme: readable
 graphics: yes
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include = F}
@@ -44,11 +46,10 @@ The light sensor is calibrated for PFD against a LiCor and compared to a Hobo, w
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # Load Packages
+require(tidyverse) # Needed for ggplot2 and data wrangling
 require(cowplot) # Needed for publication-quality ggplots
 require(ggpmisc) # Needed for lm equations on graphs
 require(bbmle) # Needed for AICctab
-require(tidyr) # Needed for data wrangling
-require(dplyr) # Needed for data wrangling, load last to avoid conflicts
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@ Data Preparation
@@ -153,25 +154,6 @@ light <- light %>%
 ```
 
 
-```{r 'Data_Wrangling_Light', echo = F, include = F}
-
-# Wrangle the hobo comparison data
-light.hobo.comp <- soil %>%
-
-    # Select only lux and hobo_par (renaming to umol)
-    select(lux, umol = hobo_par) %>%
-    
-    # Remove rows with missing data
-    filter(!is.na(umol), !is.na(lux)) %>%
-    
-    # Add the quadratic calibration
-    mutate(umol.quad = light.quad$coefficients[1] + 
-        light.quad$coefficients[2] * lux + 
-        light.quad$coefficients[3] * lux ^ 2) 
-    
-```
-
-
 
 #### Light Calibration Graphs
 
@@ -267,7 +249,7 @@ rms.light
 
 ```
 
-Graph showing the predicted values of FD from the quadratic model graphed against the LiCor
+Graph showing the predicted values of PFD from the quadratic model graphed against the LiCor
 
 ```{r 'Light_predict', echo = F}
 
@@ -291,37 +273,10 @@ light %>% ggplot(aes(x = umol, y = umol.quad)) +
 
 ```
 
-This graph compares the BH1750FVI (calibrated to the LiCor) to a [Hobo Microstation](http://www.onsetcomp.com/products/data-loggers/h21-002) with a [S-LIA-M003 PAR Sensor](http://www.onsetcomp.com/products/sensors/s-lia-m003).  The Hobo shows very messy data.  This is the calibration run on the windowsill in TLS in parallel with the soil calibration
-
-```{r 'Light_sensor_comparison', echo = F}
-
-# Construct the plot
-light.hobo.comp %>% ggplot(aes(x = umol, y = umol.quad)) +
-
-        # Add points
-        geom_point(alpha = 0.4, color = "blue") +
-    
-        # Add a line with a slope of 1 and intercept of 0
-        geom_abline(intercept = 0, slope = 1) + 
-    
-        # Add axes
-        xlab(bquote(bold('Hobo PFD (µmol '~m^-2 ~s^-1~')'))) +
-        ylab(bquote(bold('EMU PFD (µmol '~m^-2 ~s^-1~')'))) +
-    
-        # Title
-        ggtitle("Windowsill Calibration") + 
-    
-        # Add theme
-        ggplot.theme
-
-```
-
 
 ### Soil Calibration Results
 
 Calibration of generic silver and gold soil moisture sensor probes with a datalogging scale, measuring water content of the soil every five minutes. The soil used for calibration was a rich loam from the Fenton Meadow. The data columns soil1 and soil2 are gold (ENIG) probes, while soil3 is a silver (HASL) probe.
-
-Concurrently, the soil moisture was measured with a [Hobo Microstation](http://www.onsetcomp.com/products/data-loggers/h21-002) equipped with a [Decagon Devices ECH20 capacitive soil moisture sensor](http://www.decagondevices.eu/products/discontinued-products/ech2o-1).
 
 
 ```{r 'Data_Wrangling_Soil', echo = F, comment = ""}
@@ -334,8 +289,8 @@ fenton.density = 0.90
 # Data wrangling
 cal <- soil %>%
 
-    # Remove the metadata column, and rename soil probes
-    select(-metadata, gold1 = soil1, gold2 = soil2, silver = soil3) %>%
+    # Remove the metadata column
+    select(-metadata) %>%
     
     # Get rid of any missing data rows
     filter(!is.na(weight)) %>%
@@ -345,10 +300,14 @@ cal <- soil %>%
         vwc = gwc * fenton.density) %>%
     
     # Convert the date to date format
-    mutate(date = as.POSIXct(date, format = "%m/%d/%y %H:%M"))
+    mutate(date = as.POSIXct(date, format = "%m/%d/%Y %H:%M"))
 
 
 ```
+
+### Soil Gold Models
+
+Models using the data from the gold-plated soil moisture probe
 
 #### Soil Gold Linear Model
 
@@ -360,10 +319,6 @@ gold.lm <- cal %>%
     
     # Filter for after 7/22, when probes hit a minimum
     filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
-
-    # Gather all the probe measurements into one column
-    # This combines data from the two gold probes
-    gather(probe, gold, gold1, gold2) %>%
     
     # Run the linear model
     lm(vwc ~ gold, data = .)
@@ -373,51 +328,18 @@ summary(gold.lm)
 
 ```
 
-#### Soil Gold Linear Temperature Model (Combined)
-
-This model is better (by AICc), but it doesn't add much
-
-```{r 'Soil_linear_gold_temp_model', echo = F, comment = ""}
-
-
-# Calibrate the gold probe with a temperature compensated model
-gold.lm.temp <- cal %>%
-    
-    # Filter for after 7/22, when probes hit a minimum
-    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
-
-    # Gather all the probe measurements into one column
-    # This combines data from the two gold probes
-    gather(probe, gold, gold1, gold2) %>%
-    
-    # Run the linear model
-    lm(vwc ~ gold + temp, data = .)
-
-# View the model
-summary(gold.lm.temp)
-
-
-# Check AICs, temp-compensated is the best model, but doesn't add much
-AICctab(gold.lm, gold.lm.temp)
-
-
-```
-
-#### Soil Gold Quadratic Model (Combined)
+#### Soil Gold Quadratic Model
 
 The quadratic model is considerably better
 
 ```{r 'Soil_quadratic_gold_model', echo = F, comment = ""}
+
 
 # Calibrate the gold probes using a quadratic model
 gold.quad <- cal %>%
   
     # Filter for after 7/22, when probes hit a minimum
     filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
-
-    # Gather all the probe measurements into one column
-    # This combines data from the two gold probes
-    gather(probe, gold, gold1, gold2) %>%
     
     # Make a squared column
     mutate(gold.squared = gold ^ 2) %>%
@@ -429,61 +351,50 @@ gold.quad <- cal %>%
 summary(gold.quad)
 
 # Check AICsh
-AICctab(gold.lm, gold.lm.temp, gold.quad)
-
-```
-
-#### Soil Gold Quadratic Model (Separate)
-
-Calulates a separate quadratic model for each probe.
-
-I've decided to use the Gold2 probe calibration.  The Gold1 probe did some funny things and was more corroded, so I think it's not so trustworthy.
-
-```{r 'Soil_quadratic_gold_models', echo = F, comment = ""}
-
-
-
-# Calibrate the first gold probe using a quadratic model
-gold.quad.1 <- cal %>%
-  
-    # Filter for after 7/15, when probes hit a minimum
-    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
-    
-    # Make a squared column
-    mutate(gold1.squared = gold1 ^ 2) %>%
-
-    # Run the quadratic model
-    lm(vwc ~ gold1 + gold1.squared, data = .)
- 
-# View the model
-summary(gold.quad.1)
-
-
-# Calibrate the first gold probe using a quadratic model
-gold.quad.2 <- cal %>%
-  
-    # Filter for after 7/15, when probes hit a minimum
-    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
-    
-    # Make a squared column
-    mutate(gold2.squared = gold2 ^ 2) %>%
-
-    # Run the quadratic model
-    lm(vwc ~ gold2 + gold2.squared, data = .)
- 
-# View the model
-summary(gold.quad.2)
-
+AICctab(gold.lm, gold.quad)
 
 # Rename the intercept coefficient
-names(gold.quad.2$coefficients) <- c("intercept", "soil", "soil.squared")
+names(gold.quad$coefficients) <- c("intercept", "soil", "soil.squared")
 
 # Write the calibration coefficients to a CSV
-write.csv(data.frame(as.list(gold.quad.2$coefficients)),
-    "Analyses/Calibration/soil-calibration.csv", row.names = F)
+write.csv(data.frame(as.list(gold.quad$coefficients)),
+    "Analyses/Calibration/gold-soil-calibration.csv", row.names = F)
+
+```
+
+
+#### Soil Gold Quadratic Temperature Model
+
+The quadratic temperature-compensated model is better by AIC, but it doesn't add much, and doesn't eliminate the residual zig-zag pattern (see below).
+
+```{r 'Soil_quadratic_gold_temp_model', echo = F, comment = ""}
+
+
+# Calibrate the gold probes using a quadratic model
+gold.quad.temp <- cal %>%
+  
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+    
+    # Make a squared column
+    mutate(gold.squared = gold ^ 2) %>%
+
+    # Run the quadratic model
+    lm(vwc ~ gold + gold.squared + temp, data = .)
+ 
+# View the model
+summary(gold.quad.temp)
+
+# Check AICsh
+AICctab(gold.lm, gold.quad, gold.quad.temp)
 
 
 ```
+
+
+### Soil Gold Models
+
+Models using the data from the silver (solder plated) soil moisture probe
 
 #### Soil Silver Linear Model
 
@@ -527,6 +438,38 @@ summary(silver.quad)
 # Check AICc
 AICctab(silver.lm, silver.quad)
 
+# Rename the intercept coefficient
+names(silver.quad$coefficients) <- c("intercept", "soil", "soil.squared")
+
+# Write the calibration coefficients to a CSV
+write.csv(data.frame(as.list(silver.quad$coefficients)),
+    "Analyses/Calibration/silver-soil-calibration.csv", row.names = F)
+
+```
+
+#### Soil Silver Quadratic Temperature Model
+
+```{r 'Soil_quadratic_silver_temp_model', echo = F, comment = ""}
+
+
+# Calibrate the silver probe using a quadratic model
+silver.quad.temp <- cal %>%
+    
+    # Filter for after 7/22, when probes hit a minimum
+    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
+    
+    # Make a squared column
+    mutate(silver.squared = silver ^ 2) %>%
+    
+    # Run the linear model
+    lm(vwc ~ silver + silver.squared + temp, data = .)
+
+# View the model
+summary(silver.quad.temp)
+
+# Check AICc
+AICctab(silver.lm, silver.quad.temp)
+
 ```
 
 
@@ -536,27 +479,34 @@ AICctab(silver.lm, silver.quad)
 # Update the dataset with predicted values from the linear models
 cal <- cal %>%
     
-    # Add the quadratic calibration for the first gold probe
-    mutate(gold1_vwc = gold.quad.1$coefficients[1] + 
-        gold.quad.1$coefficients[2] * gold1 + 
-        gold.quad.1$coefficients[3] * gold1 ^ 2) %>%
+    # Add the quadratic calibration for the gold probe
+    mutate(gold_vwc = gold.quad$coefficients[1] + 
+        gold.quad$coefficients[2] * gold + 
+        gold.quad$coefficients[3] * gold ^ 2) %>%
     
-    # Add the quadratic calibration for the second gold probe
-    mutate(gold2_vwc = gold.quad.2$coefficients[1] + 
-        gold.quad.2$coefficients[2] * gold2 + 
-        gold.quad.2$coefficients[3] * gold2 ^ 2) %>%
+    # Add the temperature compensated quadratic calibration for the gold probe
+    mutate(gold_vwc_temp = gold.quad.temp$coefficients[1] + 
+        gold.quad.temp$coefficients[2] * gold + 
+        gold.quad.temp$coefficients[3] * gold ^ 2 + 
+        gold.quad.temp$coefficients[4] * temp) %>%
     
     # Add the quadratic calibration for the silver probe
     mutate(silver_vwc = silver.quad$coefficients[1] + 
         silver.quad$coefficients[2] * silver + 
-        silver.quad$coefficients[3] * silver ^ 2)
+        silver.quad$coefficients[3] * silver ^ 2) %>%
+
+    # Add the temperature compensated quadratic calibration for the silver probe
+    mutate(silver_vwc_temp = silver.quad.temp$coefficients[1] + 
+        silver.quad.temp$coefficients[2] * silver + 
+        silver.quad.temp$coefficients[3] * silver ^ 2 + 
+        silver.quad.temp$coefficients[4] * temp)
 
 
 ```
 
 #### Soil Calibration Graphs
 
-Showing soil moisture probe values over time. There is some diurnal variation that is likely temperature driven.
+Showing soil moisture probe values over time. There is some diurnal variation that is partially temperature-driven.
 
 Adding temperature to the quadratic fit does improve things slightly, but the temperature range is only ~21-30 C, so it doesn't encompass the full temperature range outside
 
@@ -567,13 +517,13 @@ cal %>%
     # Filter for after 7/22, when probes hit a minimum
     filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
     
-    gather(probe, value, gold1, gold2, silver) %>%
+    gather(probe, value, gold, silver) %>%
 
     ggplot(aes(x = date, y = value, color = probe, group = probe)) +
 
         # Set up the colors and legend
-        scale_color_manual(values = c("gold", "darkgoldenrod", "gray60"), name = "Probe", 
-            labels = c("Gold #1", "Gold #2", "Silver")) +
+        scale_color_manual(values = c("gold", "gray60"), name = "Probe", 
+            labels = c("Gold", "Silver")) +
     
         geom_line(size = 1.2) +
     
@@ -591,7 +541,7 @@ cal %>%
 
 
 
-[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the quadratic gold model and VWC values from the scale.  This gives a measure of accuracy.
+[Root mean square](https://en.wikipedia.org/wiki/Root_mean_square#Error) error between predicted values from the gold probe quadratic model and measured VWC values from the scale.  This gives a measure of accuracy.
 
 ```{r 'RMSE_Soil', echo = F, comment = ""}
 
@@ -599,7 +549,7 @@ cal %>%
 rms.soil <- cal %>%
     
     # Calculate the difference between the actual VWC and the prediction
-    mutate(vwc.diff = vwc - gold2_vwc) %>%
+    mutate(vwc.diff = vwc - gold_vwc) %>%
     
     # Square the differences
     mutate(diff.squared = vwc.diff ^ 2) %>%
@@ -614,7 +564,7 @@ rms.soil
 ```
 
 
-A graph of the calibration and formula using the quadratic model
+A graph of the calibration and formula using the quadratic model for the gold probe
 
 ```{r 'Soil_quad_calibration', echo = F}
 
@@ -623,7 +573,7 @@ cal %>%
     # Filter for after 7/22, when probes hit a minimum
     filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
 
-    ggplot(aes(x = gold2, y = vwc)) +
+    ggplot(aes(x = gold, y = vwc)) +
     
         # Add points
         geom_point() + 
@@ -653,7 +603,7 @@ cal %>%
 
 ```
 
-Graph showing the predicted values of VWC from the quadratic model graphed against the actual VWC
+Graph showing the predicted values of VWC from the quadratic model graphed against the actual VWC. Notably, the zig-zag pattern improves slightly in the temperature-compensated model, but it is far from eliminated.
 
 ```{r 'Soil_predict_comparison', echo = F}
 
@@ -664,7 +614,7 @@ cal %>%
     filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
     
     # Gather all the probes together
-    gather(probe, value, gold1_vwc, gold2_vwc, silver_vwc) %>%
+    gather(probe, value, gold_vwc, gold_vwc_temp, silver_vwc) %>%
     
     arrange(desc(probe)) %>%
 
@@ -678,8 +628,8 @@ cal %>%
         geom_point() +
     
         # Set up the colors and legend
-        scale_color_manual(values = c("gold", "darkgoldenrod", "gray60"), name = "Probe", 
-            labels = c("Gold #1", "Gold #2", "Silver")) +
+        scale_color_manual(values = c("gold", "darkgoldenrod", "gray60"), 
+            name = "Probe", labels = c("Gold", "Gold Temp", "Silver")) +
     
         # Add axis labels
         xlab(bquote(bold('Actual VWC'~(m^3/m^3)))) +
@@ -691,45 +641,6 @@ cal %>%
     
         # Change legend position
         theme(legend.position = c(0.14, 0.85))
- 
-
-```
-
-Comparison of predicted values of VWC from the EMU sensors and VWC from the Hobo Microstation compared to actual VWC
-
-```{r 'Soil_sensor_comparison', echo = F}
-
-# Plot hobo and emu vs actual VWC
-cal %>%
-    
-    # Filter for after 7/22, when probes hit a minimum
-    filter(date >= as.POSIXct("2017-07-22 00:00")) %>%
-    
-    # Gather just the gold2 probe and hobo together
-    gather(probe, value, gold2_vwc, hobo_vwc) %>%
-
-    # Make the plot
-    ggplot(aes(x = vwc, y = value, color = probe)) +
-    
-        # Add a line with a slope of 1 and intercept of 0
-        geom_abline(intercept = 0, slope = 1) + 
-    
-        # Add points
-        geom_point() +
-    
-        # Change the graph colors
-        scale_color_manual(values = c("black", "blue"), name = "Sensor", 
-            labels = c("EMU (calibrated)", "Hobo Microstation")) +
-    
-        # Add axis labels
-        xlab(bquote(bold('Actual VWC'~(m^3/m^3)))) +
-        ylab(bquote(bold('Sensor VWC'~(m^3/m^3)))) + 
-    
-        # Add theme
-        ggplot.theme + 
-    
-        # Change legend position
-        theme(legend.position = c(0.22, 0.88))
  
 
 ```
