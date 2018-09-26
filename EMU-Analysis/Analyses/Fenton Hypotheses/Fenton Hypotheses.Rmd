@@ -9,6 +9,8 @@ output:
     fig_caption: yes
     theme: readable
 graphics: yes
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include = F}
@@ -49,12 +51,12 @@ We set up a number of expectations for the Fenton site
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # Load Packages
+require(tidyverse) # Needed for data wrangling
 require(cowplot) # Needed for publication-quality ggplots
-require(tidyr) # Needed for data wrangling
-require(lubridate) # Needed for date wrangling
+require(rgeos) # Required for dawn/dusk times
+require(maptools) # Required for dawn/dusk times
 require(knitr) # Needed to print tables to markdown
-require(dplyr) # Needed for data wrangling, load last to avoid conflicts
-require(mgcv) # Needed for gams
+require(lubridate) # Needed for working with dates
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@ Data Preparation
@@ -117,7 +119,7 @@ fenton.wide <- fenton %>%
 
     # Go to pure long format: all measurements in one column
     gather(measurement, value, temperature, humidity, vwc, 
-        par, light, soil, pressure) %>%
+        pfd, light, soil, pressure) %>%
     
     # Make a column that is both source & measurement type
     unite(measure, source, measurement) %>%
@@ -137,7 +139,6 @@ fenton.wide <- fenton %>%
 str(fenton.wide)
 
 
-
 # Calculate hourly means and differences between 2 transects @ Fentonb
 diff <- fenton %>%
     
@@ -153,9 +154,13 @@ diff <- fenton %>%
         h.mean = mean(humidity, na.rm = T), 
         h.var = var(humidity, na.rm = T), 
         h.obs = sum(!is.na(humidity)),
-        l.mean = mean(par, na.rm = T), 
-        l.var = mean(par, na.rm = T), 
-        l.obs = sum(!is.na(par))) %>%
+        l.mean = mean(pfd, na.rm = T), 
+        l.var = mean(pfd, na.rm = T), 
+        l.obs = sum(!is.na(pfd)),
+        s.mean = mean(vwc, na.rm = T), 
+        s.var = mean(vwc, na.rm = T), 
+        s.obs = sum(!is.na(vwc))        
+        ) %>%
     
     # Group by hour alone
     group_by(hour) %>%
@@ -177,26 +182,27 @@ diff <- fenton %>%
         l.diff = l.mean - l.mean[transect == "Meadow"][1], 
         l.vn = l.var / l.obs,
         l.stderr = sqrt(l.vn + l.vn[transect == "Meadow"][1]), 
-        l.conf = l.stderr * 1.96
+        l.conf = l.stderr * 1.96, 
+        
+        s.diff = s.mean - s.mean[transect == "Meadow"][1], 
+        s.vn = s.var / s.obs,
+        s.stderr = sqrt(s.vn + s.vn[transect == "Meadow"][1]), 
+        s.conf = s.stderr * 1.96
         
         ) %>%
     
     # Group by only the variables needed and summarize
-    group_by(transect, day, hour, day.hr, t.mean, t.diff, t.stderr, t.conf, 
+    group_by(transect, day, hour, day.hr, 
+        t.mean, t.diff, t.stderr, t.conf, 
         h.mean, h.diff, h.stderr, h.conf, 
-        l.mean, l.diff, l.stderr, l.conf) %>%
+        l.mean, l.diff, l.stderr, l.conf, 
+        s.mean, s.diff, s.stderr, s.conf) %>%
     
     # Summarize by transect & hour
     summarize %>%
-
-    # filter out meadow sites
-    
-    filter(transect=="Woods") %>%
     
     # Convert back to normal data frame
     data.frame
-
-
 
 
 # Create a new dataset with just diff & conf.int
@@ -206,7 +212,8 @@ diff.long <- diff %>%
     filter(transect == "Woods") %>%
     
     # Get rid of unneeded columns
-    select(-t.mean, -h.mean, -l.mean, -t.stderr, -h.stderr, -l.stderr) %>%
+    select(-t.mean, -h.mean, -l.mean, s.mean, 
+           -t.stderr, -h.stderr, -l.stderr, s.stderr) %>%
     
     # Gather diff and conf columns into variable & value columns
     gather(variable, value, ends_with("diff"), ends_with("conf")) %>%
@@ -219,9 +226,8 @@ diff.long <- diff %>%
     
     # Recode t, h, and l, into their measurement names
     mutate(measurement = factor(recode(measurement, 
-        "t" = "Temperature", "h" = "Humidity", "l" = "PAR"), 
-        levels = c("Temperature", "Humidity", "PAR"))) 
-
+        "t" = "Temperature", "h" = "Humidity", "l" = "PFD", "s" = "VWC"), 
+        levels = c("Temperature", "Humidity", "PFD", "VWC"))) 
 
 
 # Make a mean volumetric water content by hour/emu dataset
@@ -236,32 +242,53 @@ soil.hr <- fenton %>%
     # Convert to normal data frame
     data.frame
 
+# Dawn/Dusk times dataset
+# See: http://rstudio-pubs-static.s3.amazonaws.com/17282_9510673f07294de7905e11c7f2b043a5.html
 
+# Create a coordinate for the Fenton site
+fenton.coord <- matrix(c(-72.238159, 41.825076), nrow = 1) %>%
+    SpatialPoints(proj4string = CRS("+proj=longlat +datum=WGS84"))
 
+# Create a data frame with dawn and dusk times with the following start/end dates for the project
+darkness <- data.frame(date = seq(from = as.POSIXct("2017-05-30"), 
+     to = as.POSIXct("2017-06-21"), by = "day")) %>%
+     
+     # Add dawn times
+     mutate(dawn.time = crepuscule(fenton.coord, date, solarDep = 6, 
+         direction = "dawn", POSIXct.out = TRUE)$time) %>%
+  
+     # Add dusk times
+     mutate(dusk.time = crepuscule(fenton.coord, date, solarDep = 6, 
+         direction = "dusk", POSIXct.out = TRUE)$time) %>%
+    
+     # Convert dawn and dusk times to hours since the start
+     mutate(
+         dusk = round(interval(as.POSIXct("2017-05-30 12:00"), lag(dusk.time)) /
+            dhours(1)),
+         dawn = round(interval(as.POSIXct("2017-05-30 12:00"), dawn.time) /
+            dhours(1))) %>%
+    
+    # Get rid of the first day
+    filter(date >= as.POSIXct("2017-05-31"))
 
-# Figure out hours for darkness
-darkness <- data.frame(dusk = seq(from = 8, to = 528, by = 24), 
-        dawn = seq(from = 17, to = 528, by = 24))
-
-# Duplicate the darkness dataset with different ymin/ymax by variable
 diff.darkness <- rbind(
     darkness %>% mutate(measurement = "Temperature", ymin = -14, ymax = 8), 
     darkness %>% mutate(measurement = "Humidity", ymin = -26, ymax = 37), 
-    darkness %>% mutate(measurement = "PAR", ymin = -1400, ymax = 10)) %>%
+    darkness %>% mutate(measurement = "PFD", ymin = -1665, ymax = 10),
+    darkness %>% mutate(measurement = "VWC", ymin = -0.18, ymax = 0)) %>%
     
     # Order the measurements
     mutate(measurement = factor(measurement, 
-        levels = c("Temperature", "Humidity", "PAR")))
+        levels = c("Temperature", "Humidity", "PFD", "VWC")))
 
 # Make a darkness dataset for soil moisture
 soil.darkness <- darkness %>%
     mutate(ymin = 0, ymax = 0.45)
 
+
 ```
 
 ## Missing Data
-
-### EMUs
 
 ```{r 'Missing_Data', echo = F}
 
@@ -272,7 +299,7 @@ missing.data <- fenton %>%
     filter(source == "EMU") %>%
     
     # Select the variables to work with
-    select(emu, temperature, humidity, par, vwc) %>%
+    select(emu, temperature, humidity, pfd, vwc) %>%
 
     # Group by the EMUs
     group_by(emu) %>%
@@ -285,7 +312,7 @@ missing.data <- fenton %>%
     
     # Go to pure long format: all measurements in one column
     gather(measurement, value, temperature, humidity, vwc, 
-        par) %>%
+        pfd) %>%
     
     # Group by emu/measurement
     group_by(emu, logs, logs.missing, measurement) %>%
@@ -303,7 +330,7 @@ missing.data <- fenton %>%
     spread(measurement, n) %>%
     
     # Select column order
-    select(emu, logs, logs.missing, temperature, humidity, par, 
+    select(emu, logs, logs.missing, temperature, humidity, pfd, 
         vwc, data.missing) %>%
     
     
@@ -319,8 +346,8 @@ missing.data %>%
         logs.missing = 1 - (logs/(2109*8)), 
         temperature = sum(temperature), 
         humidity = sum(humidity), 
-        par = sum(par), vwc = sum(vwc), 
-        data.missing = 1 - (temperature + humidity + par + vwc) / 
+        pfd = sum(pfd), vwc = sum(vwc), 
+        data.missing = 1 - (temperature + humidity + pfd + vwc) / 
             (2109*4*8)
         ) %>%
     
@@ -328,30 +355,21 @@ missing.data %>%
     rbind(missing.data, .) %>%
     
     # Roud missing data to 3 decimals
-    mutate_each(funs(round(.,3)), logs.missing, data.missing) %>%
+    mutate_at(c("logs.missing", "data.missing"), funs(round(.,3))) %>%
     
     # Print a markdown table
     kable(digits = 3, format = "markdown")
 
-
 ```
-
-
-### iButtons
-
-
-
-### Hobo Pendants
-
-
-
-### Hobo Microstations
 
 
 ## Main Hypotheses
 
+Hourly differences between the two transects. Dark rectangles denote night-time hours (between dusk and dawn)
 
-```{r 'Hourly_Differences1', echo = F}
+
+```{r 'Hourly_Differences', echo = F}
+
 
 # Take the long dataset
 diff.long %>%
@@ -362,19 +380,14 @@ diff.long %>%
         # Facet by measurement
         facet_wrap(~ measurement, ncol = 1, scales = "free") + 
     
-        # Add rectangles for darkness
+        # Add rectangles for Darkness
         geom_rect(data = diff.darkness, 
             aes(xmin = dusk, xmax = dawn, ymin = ymin, ymax = ymax, 
                 x = NULL, y = NULL, color = NULL), 
-            fill = "grey95", show.legend = F) + 
+            fill = "gray85", show.legend = F) + 
         
-        # Add the points, colored by    
+        # Add the points, colored by measurement
         geom_point() + 
-    
-        # http://ggplot2.tidyverse.org/reference/geom_smooth.html
-        # http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/
-        geom_smooth(aes(x = day.hr), method = "gam",
-           formula = y ~ s(x, bs = "cc", k = 12)) +
     
         # Add a red line at 0
         geom_hline(yintercept = 0, color = "red") + 
@@ -390,275 +403,38 @@ diff.long %>%
         ggplot.theme
 
 
-```
-
-
-```{r 'Hourly_Differences2', echo = F}
-library(mgcv)
-
-# Tim's attempt
-head(diff)
-head(fenton)
-
-# create fenton dataframe that excludes NAs for temperature
-fenton.temp <- fenton %>% filter(source== "EMU", temperature != is.na(temperature))
-
-
-# fit gamms with different correlationstructures and compare with AIC
-m1 <- gamm(temperature ~  s(day.hr, bs = "cc", k = 24) + s(hour) + transect , data = fenton.temp)
-
-
-# define control for corARMA (autoregressive models)
-ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
-
-m2 <- gamm(temperature ~  s(day.hr, bs = "cc", k = 24) + s(hour) + transect , data = fenton.temp, 
-           correlation = corARMA(form = ~ 1|day, p = 1), control = ctrl)
-
-# m3 <- gamm(temperature ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = fenton.temp, 
-#             correlation = corARMA(form = ~ 1|day, p = 2), control = ctrl)
-
-# AIC comparison
-AIC(m1$lme, m2$lme)
-
-# plot gamms
-plot(m1$gam, scale = 0)
-plot(m2$gam, scale = 0)
-
-# plot of autocorrelation in variances
-acf(resid(m1$lme), lag.max = 30)
-pacf(resid(m1$lme), lag.max = 30)
-acf(resid(m2$lme), lag.max = 30)
-pacf(resid(m2$lme), lag.max = 30)
-
-# predict new data to use in ggplot with geom_line
-p.m1 <- data.frame(predict(m1$gam, se.fit = TRUE))
-p.m2 <- data.frame(predict(m2$gam, se.fit = TRUE))
-
-# add hour variable to newdata from predict
-p.m1$hour <- filter(fenton.temp,source== "EMU")$hour
-p.m2$hour <- filter(fenton.temp,source== "EMU")$hour
-
-
-colnames(p.m1) <- c("data.fit", "se.fit", "hour")
-colnames(p.m2) <- c("data.fit", "se.fit", "hour")
-ggplot()+ 
-    
-    geom_point(data = fenton.temp, aes(x = hour, y = temperature), size = 0.7, alpha = 0.8) +
-    
-    geom_line(data = p.m2, aes(x = hour, y = data.fit), lwd = 2, color = "darkblue") +
-    
-    # SE ribbon
-    geom_ribbon(data = p.m2, aes(x = hour, ymax = (data.fit + (se.fit* 1.96)) , 
-                                 ymin = (data.fit - (se.fit * 1.96))), lwd = 2, fill = "red", alpha = 0.3) +
-    
-    # facet_wrap( ~ transect, ncol = 1) + 
-
-        
-    # Add the custom theme
-     ggplot.theme
 
 ```
-
-
-```{r 'Hourly_Differences3', echo = F}
-# calculate gamms for differences TEMPERATURE
-head(diff)
-# create fenton dataframe that excludes NAs for temperature
-diff.temp <- diff %>% filter(!is.na(t.diff))
-
-# fit gamms with different correlationstructures and compare with AIC
-m1 <- gamm(t.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.temp)
-
-
-# define control for corARMA (autoregressive models)
-ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
-
-m2 <- gamm(t.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.temp, 
-           correlation = corARMA(form = ~ 1|day, p = 1), control = ctrl)
-
-
-plot(m2$gam)
-# predict new data to use in ggplot with geom_line
-p.m1 <- data.frame(predict(m1$gam, se.fit = TRUE))
-p.m2 <- data.frame(predict(m2$gam, se.fit = TRUE))
-
-# add hour variable to newdata from predict
-p.m1$hour <- diff.temp$hour
-p.m2$hour <- diff.temp$hour
-
-# change colnames
-colnames(p.m1) <- c("data.fit", "se.fit", "hour")
-colnames(p.m2) <- c("data.fit", "se.fit", "hour")
-
-ggplot()+ 
-    
-    
-    geom_line(data = p.m2, aes(x = hour, y = data.fit), lwd = 1, color = "darkblue") +
-    
-    # SE ribbon
-    geom_ribbon(data = p.m2, aes(x = hour, ymax = (data.fit + (se.fit* 1.96)) , 
-                                 ymin = (data.fit - (se.fit * 1.96))), lwd = 1, fill = "red", alpha = 0.3) +
-    
-    # facet_wrap( ~ transect, ncol = 1) + 
-        
-    geom_point(data = diff.temp, aes(x = hour, y = t.diff), alpha = 0.8) +
-    
-    xlab("Hour") + 
-    
-    ylab("Temperature Difference") + 
-
-    
-    # Add a red line at 0
-    geom_hline(yintercept = 0, color = "red") + 
-        
-    # Add the custom theme
-     ggplot.theme
-
-```
-
-```{r 'Hourly_Differences4', echo = F}
-# calculate gamms for differences of HUMIDITY
-head(diff)
-# create fenton dataframe that excludes NAs for temperature
-diff.humid <- diff %>% filter(!is.na(h.diff))
-
-# fit gamms with different correlationstructures and compare with AIC
-m1 <- gamm(h.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.humid)
-
-
-# define control for corARMA (autoregressive models)
-ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
-
-m2 <- gamm(h.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.humid, 
-           correlation = corARMA(form = ~ 1|day, p = 1), control = ctrl)
-
-
-plot(m2$gam)
-# predict new data to use in ggplot with geom_line
-p.m1 <- data.frame(predict(m1$gam, se.fit = TRUE))
-p.m2 <- data.frame(predict(m2$gam, se.fit = TRUE))
-
-length(p.m1[, 1])
-length(diff.humid$hour)
-
-# add hour variable to newdata from predict
-p.m1$hour <- diff.humid$hour
-p.m2$hour <- diff.humid$hour
-
-# change colnames
-colnames(p.m1) <- c("data.fit", "se.fit", "hour")
-colnames(p.m2) <- c("data.fit", "se.fit", "hour")
-
-ggplot()+ 
-    
-    geom_line(data = p.m2, aes(x = hour, y = data.fit), lwd = 1, color = "darkblue") +
-    
-    # SE ribbon
-    geom_ribbon(data = p.m2, aes(x = hour, ymax = (data.fit + (se.fit)) , 
-                                 ymin = (data.fit - (se.fit))), lwd = 1, fill = "red", alpha = 0.3) +
-    
-    geom_point(data = diff.humid, aes(x = hour, y = h.diff), alpha = 0.8) +
-    # facet_wrap( ~ transect, ncol = 1) +
-    
-    xlab("Hour") + 
-    
-    ylab("Humidity Difference") + 
-        
-    # Add a red line at 0
-    geom_hline(yintercept = 0, color = "red") + 
-        
-    # Add the custom theme
-     ggplot.theme
-
-```
-
-```{r 'Hourly_Differences5', echo = F}
-# calculate gamms for differences of LIGHT
-head(diff)
-# create fenton dataframe that excludes NAs for temperature
-diff.light <- diff %>% filter(!is.na(l.diff))
-
-head(diff.light)
-# fit gamms with different correlationstructures and compare with AIC
-m1 <- gamm(l.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.light)
-
-
-# define control for corARMA (autoregressive models)
-ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
-
-m2 <- gamm(l.diff ~  s(day.hr, bs = "cc", k = 24) + s(hour) , data = diff.light, 
-           correlation = corARMA(form = ~ 1|day, p = 1), control = ctrl)
-
-plot(m2$gam)
-
-plot(m2$gam)
-# predict new data to use in ggplot with geom_line
-p.m1 <- data.frame(predict(m1$gam, se.fit = TRUE))
-p.m2 <- data.frame(predict(m2$gam, se.fit = TRUE))
-
-# add hour variable to newdata from predict
-p.m1$hour <- diff.light$hour
-p.m2$hour <- diff.light$hour
-
-# change colnames
-colnames(p.m1) <- c("data.fit", "se.fit", "hour")
-colnames(p.m2) <- c("data.fit", "se.fit", "hour")
-
-head(diff)
-
-ggplot()+ 
-    
-    geom_line(data = p.m2, aes(x = hour, y = data.fit), lwd = 1, color = "darkblue") +
-
-    # SE ribbon
-    geom_ribbon(data = p.m2, aes(x = hour, ymax = (data.fit + (se.fit)) ,
-                                 ymin = (data.fit - (se.fit))), lwd = 1, fill = "red", alpha = 0.3) +
-    
-    geom_point(data = diff, aes(x = hour, y = l.diff), alpha = 0.8) +
-    # facet_wrap( ~ transect, ncol = 1) + 
-    
-        
-    xlab("Hour") + 
-    
-    ylab("Light Difference") + 
-        
-        
-    # Add a red line at 0
-    geom_hline(yintercept = 0, color = "red") + 
-        
-    # Add the custom theme
-     ggplot.theme
-
-
-
-```
+Hourly soil moisture means for each position in the transect, colored by *a priori* expectations on dry to wet (wetter in the swampy end of the meadow transect, wetter at the bottom of the hill in the woods)
 
 ```{r 'Soil_Gradient', echo = F}
 
 # Graph soil moisture gradients across transect
 soil.hr %>%
+    
+    filter(!is.na(mean)) %>%
 
     # Graph soil moisture by hour, coloring by order in the transect
     ggplot(aes(x = hour, y = mean, color = order, group = order)) + 
 
         # Facet by transect
         facet_wrap(~ transect, ncol = 1) + 
-        
-        # Add lines for each EMU  
-        geom_line() + 
     
         # Add rectangles for darkness
         geom_rect(data = soil.darkness, 
             aes(xmin = dusk, xmax = dawn, ymin = ymin, ymax = ymax, 
                 x = NULL, y = NULL, color = NULL, group = NULL), 
-            fill = "grey95", show.legend = F) + 
+            fill = "grey85", show.legend = F) + 
+    
+        # Add lines for each EMU  
+        geom_point() + 
     
         # Color from red to blue
         scale_color_gradient(name = "EMU Order\nDry to Wet", 
             low = "blue", high = "red", trans = 'reverse') + 
 
         # Add 95% confidence intervals as errorbars
-        geom_errorbar(aes(ymin = mean - stderr, ymax = mean + stderr)) + 
+        #geom_errorbar(aes(ymin = mean - stderr, ymax = mean + stderr)) + 
     
         # Restrict to 0 - 0.4 VWC
         coord_cartesian(ylim = c(0, 0.45)) + 
@@ -672,24 +448,24 @@ soil.hr %>%
 
 ```
 
-
-## Other Stuff
+Hourly means for each transect
 
 ```{r 'Hourly_Means', echo = F}
 
-# Plot hourly means for each transect and eacy variable
+# Plot hourly means for each transect and each variable
 diff %>%
     
     # Selec the hourly mean columns
-    select(transect, hour, t.mean, l.mean, h.mean) %>%
+    select(transect, hour, t.mean, l.mean, h.mean, s.mean) %>%
     
     # Gather the mean columns into long format
-    gather(measurement, mean, t.mean, l.mean, h.mean) %>%
+    gather(measurement, mean, t.mean, l.mean, h.mean, s.mean) %>%
     
     # Recode t, h, and l, into their measurement names
     mutate(measurement = factor(recode(measurement, 
-        "t.mean" = "Temp", "h.mean" = "Humidity", "l.mean" = "Light"), 
-        levels = c("Temp", "Light", "Humidity"))) %>%
+        "t.mean" = "Temp", "h.mean" = "Humidity", "l.mean" = "PFD", 
+        "s.mean" = "VWC"), 
+        levels = c("Temp", "Humidity", "PFD", "VWC"))) %>%
 
     # Plot means over time, coloring by transect
     ggplot(aes(x = hour, y = mean, color = transect)) + 
@@ -698,11 +474,11 @@ diff %>%
         facet_wrap(~ measurement, ncol = 1, scales = "free") + 
         
         # Add points
-        geom_line() +
+        geom_point() +
     
         # Add axis labels and graph title
         ylab("Mean") + xlab("Hour") + 
-        ggtitle("Hourly Means") + 
+        ggtitle("Transect Hourly Means") + 
     
         # Add the custom theme
         ggplot.theme
