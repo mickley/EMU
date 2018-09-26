@@ -143,7 +143,8 @@ Optionally, it can also sync the current time from the DS3231 to the [rtctime](h
 | %D     | Returns the date in mm/dd/yy format.  Equivalent to %m/%d/%y                                    |
 | %r     | Returns the time in 12-hour AM/PM format.  Equivalent to %i:%M:%S %p                            |
 | %T     | Returns the time in 24-hour format.  Equivalent to %H:%M:%S                                     |
-| %f     | Returns the ISO-8601 standard format YYYY-mm-ddTHH:MM:SS+tz.  Equivalent to %Y-%m-%dT%H:%M:%S%z |
+| %f     | Returns the ISO-8601 standard format YYYY-mm-ddTHH:MM:SS+tz. Equivalent to %Y-%m-%dT%H:%M:%S%z  |
+| %R     | Returns the time in R's POSIXct format: YYYY-mm-dd HH:MM:SS. Equivalent to %Y-%m-%d %H:%M:%S    |
 | %a     | Abbreviated day of week (3 letters)                                                             |
 | %A     | Full day of week                                                                                |
 | %b     | Abbreviated month name                                                                          |
