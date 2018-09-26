@@ -28,6 +28,9 @@ bit, bme280, file, gpio, i2c, node, rtctime, sntp, tmr, u8g, wifi
       and prevent panics. Problems with modules loading or not 
       connected should get caught.
 
+- 9/12/2018
+    - Complete rewrite
+
 --]]
 
 -- ########## Setup Variables ##########
@@ -58,6 +61,9 @@ interval = interval ~= nil and interval or 1
 
 -- Make sure timezone is set and default to UTC-5
 timezone = timezone ~= nil and timezone or -5
+
+-- Make sure log_level is set and default to normal
+log_level = log_level ~= nil and log_level or 3
 
 
 -- ########## Ancillary Functions ##########
@@ -149,11 +155,8 @@ function startup()
     -- Log an error and exit if the module didn't load
     if not status then print("Error: logging module failed to load. Exiting!"); return end
     
-    -- Specify a filename, logging all messages
-    log.init("logfile.txt")
-    
-    -- Only log errors
-    --log.init("logfile.txt", 1)
+    -- Specify a filename and a logging level
+    log.init("logfile.txt", log_level)
     
     -- Log the start
     log.log("Starting up ...", 3)

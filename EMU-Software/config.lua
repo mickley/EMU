@@ -33,6 +33,11 @@ Replace the EDITME sections with your own information
     - Got rid of the volt_adj parameter for reading internal voltage
     - It's now +/- obsolete with current ESP modules.  
 
+- 9/11/2018  JGM - Version 1.8:
+    - Removed wifi sections
+    - Adapted config script for publication
+    - Added log_level setting
+
 --]]
 
 
@@ -43,52 +48,20 @@ Replace the EDITME sections with your own information
 -- ##### Startup File #####
 
 -- Set startup file to execute by default
-startup = "measure_field.lua"
-
-
--- ##### Wifi Options #####
-
--- WIFI SSID (network name)
-wifi_ssid = "EMUse"
-wifi_pass = nil
-
--- Is Wifi required for startup routine?
--- If so, then init.lua will try to wait until connected before running startup
-wifi_required = false
-
--- Set the router IP address and the IP address you want the ESP to have
--- This speeds up connecting when trying to save power
-wifi_ip = nil
-wifi_router = nil
-
--- Set the hostname of the ESP
--- If running a webserver, you can then go to http://hostname
-wifi_hostname = "Natalie"
-
-
--- ##### Time Options #####
-
--- Sync the time via sntp when connected to wifi
-wifi_sync_time = false
-
--- Time sync ntp servers if syncing time
--- Lots of options here, find the best one
--- Note: might be good to find an alternate
-timeserver1 = "us.pool.ntp.org"
-timeserver2 = "pool.ntp.org"
+startup = "measure.lua"
 
 -- Hours relative to UTC
 timezone = -5 -- EST
 
---Interval to sleep in minutes
+--Interval to sleep between measurements, in minutes
 interval = 15
 
+-- Set the name of the EMU (for the log and CSV files)
+emu_name = "EMU_1"
 
--- ##### Miscellany #####
-
-
--- Add the thingspeak API key to use
-thingspeak_API = "ZXNCFVFTJ3ZN2174"
+-- The logging level: 0 for off, 1 for errors, 2 for errors and warnings
+-- 3 for errors, warnings and status, and 4 for debug/verbose
+log_level = 3
 
 
 -- ##### Configuration Finished #####
