@@ -155,7 +155,7 @@ function M.log(message, lvl)
             
             -- Check how much space is left
             -- If less than 200 bytes, we'd better be safe
-            if space < 200 then
+            if space < 500 then
 
                 -- Print error message
                 print("Not enough filesystem space left to log safely")

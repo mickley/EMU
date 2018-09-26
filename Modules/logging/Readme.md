@@ -79,7 +79,7 @@ log.init("test.log", 4, true, true)
 log.log("Logging was successful!", 3)
 
 -- Log an error message
-if 0 == 1 then
+if 0 ~= 1 then
     log.log("Zero does not equal one!", 1)
 end
 
