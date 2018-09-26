@@ -21,11 +21,11 @@ editor_options:
 
 This analysis is looking for microenvironmental differences or gradients within transects.
 
-We're using this [GAM approach](http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/).  In this approach, there are two smoothers (as Robi suggested).  One smoother is a cubic spline that accounts for intra-day variation.  Then a second spline is fitted to account for temporal variation that is not intra-day.  
+We're using this [GAM approach](http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/).  In this approach, there are two smoothers.  One smoother is a cubic spline that accounts for intra-day variation.  Then a second spline is fitted to account for temporal variation that is not intra-day.  
 
-Readings have temporal autocorrelation, therefore, we add an autoregressive moving average correlation structure (corAR1). We set the form here to account for autocorrelation separately for each transect position, treating positions as independent.  In every case, accounting for autocorrelation improves the models considerably, however, significant autocorrelation is still unaccounted for.  Zuur et. al. say that it's usually not worth finding the optimal autocorrelation structure.  
+Readings have temporal autocorrelation, therefore, we add an autoregressive moving average correlation structure (corAR1). We set the form here to account for autocorrelation separately for each transect position, treating positions as independent.  In every case, accounting for autocorrelation improves the models considerably, however, some autocorrelation is still unaccounted for.  Zuur et. al. say that it's usually not worth finding the optimal autocorrelation structure.  
 
-After all temporal effects are accounted for, we test for differences among transect positions separately for each transect (woods and meadow) and each variable (temperature, humidity, vwc, par).
+After all temporal effects are accounted for, we test for differences among transect positions separately for each transect (woods and meadow) and each variable (temperature, humidity, vwc, pfd).
 
 We do this with two models: in one the transect positions are treated as individual factors, and there is no explicit spatial trend.  In the other, transect positions are treated as a continuous variable, testing for a gradient.
 
@@ -34,8 +34,8 @@ We do this with two models: in one the transect positions are treated as individ
 1. The woods VWC should increase (wetter) from 1 to 4, moving down the hill (no, but heterogeneity)
 2. The meadow VWC should increase (wetter) from 1 to 4, moving into the swamp (yes)
 3. The woods temperature should get cooler from 1 to 4, moving down the hill (no)
-4. There should be no difference in PAR, or in temperature @ the meadow
-    1. In fact, there are slight gradients in PAR in both sites, especially the meadow
+4. There should be no difference in PFD, or in temperature @ the meadow
+    1. In fact, there are slight gradients in PFD in both sites, especially the meadow
     2. No differences in temp at the meadow
 5. Humidity is unclear, but perhaps it would mirror soil moisture patterns
     1. No gradient, but some heterogeneity (in the meadow)
@@ -286,13 +286,7 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 5998
 Number of Groups: 1 
-                 Estimate Std..Error    t.value      Pr...t..
-(Intercept)    19.0513059  0.6450241 29.5358064 5.384916e-179
-factor(order)3  0.4862130  0.8934225  0.5442140  5.863147e-01
-factor(order)4 -0.2176798  0.9013076 -0.2415155  8.091640e-01
 ```
-
-![](Within-Transect_Models_files/figure-html/Meadow_Temp-5.png)<!-- -->
 
 ### Woods Temperature
 
@@ -551,14 +545,7 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 7078
 Number of Groups: 1 
-                  Estimate Std..Error     t.value      Pr...t..
-(Intercept)    17.51013811  0.5063908 34.57831322 5.416931e-242
-factor(order)2  0.11079059  0.7140038  0.15516807  8.766933e-01
-factor(order)3  0.13529269  1.0011388  0.13513880  8.925060e-01
-factor(order)4 -0.04116333  0.7140850 -0.05764486  9.540332e-01
 ```
-
-![](Within-Transect_Models_files/figure-html/Woods_Temp-5.png)<!-- -->
 
 
 ## Humidity
@@ -789,13 +776,7 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 5997
 Number of Groups: 1 
-                 Estimate Std..Error    t.value     Pr...t..
-(Intercept)    77.4292490   1.467463 52.7640069 0.000000e+00
-factor(order)3  0.9422413   2.032518  0.4635832 6.429634e-01
-factor(order)4  8.0000699   2.050311  3.9018812 9.650376e-05
 ```
-
-![](Within-Transect_Models_files/figure-html/Meadow_Humid-5.png)<!-- -->
 
 ### Woods Humidity
 
@@ -1054,14 +1035,7 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 7078
 Number of Groups: 1 
-                Estimate Std..Error    t.value  Pr...t..
-(Intercept)    83.852478   1.663826 50.3973775 0.0000000
-factor(order)2  3.099921   2.346660  1.3209927 0.1865468
-factor(order)3 -2.068004   3.348761 -0.6175430 0.5368966
-factor(order)4  1.333362   2.346933  0.5681297 0.5699651
 ```
-
-![](Within-Transect_Models_files/figure-html/Woods_Humid-5.png)<!-- -->
 
 
 ## Volumetric Water Content
@@ -1520,14 +1494,7 @@ m.vwc.ar1.factor$lme     2 29 -67355.88 -67156.25 33706.94 1 vs 2 23.84303
                      p-value
 m.vwc.ar1$lme               
 m.vwc.ar1.factor$lme  <.0001
-                    Estimate  Std..Error     t.value      Pr...t..
-(Intercept)     0.1914202714 0.008693279 22.01934173 4.924154e-104
-factor(order)2 -0.0007696305 0.011137765 -0.06910098  9.449112e-01
-factor(order)3  0.0371393521 0.011049389  3.36121334  7.800609e-04
-factor(order)4  0.1113487276 0.011072781 10.05607642  1.237864e-23
 ```
-
-![](Within-Transect_Models_files/figure-html/Meadow_VWC-5.png)<!-- -->
 
 ### Woods VWC
 
@@ -1792,39 +1759,32 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 8435
 Number of Groups: 1 
-                  Estimate  Std..Error   t.value      Pr...t..
-(Intercept)    0.066861968 0.002127152 31.432620 4.154601e-205
-factor(order)2 0.081794629 0.003003914 27.229348 1.629478e-156
-factor(order)3 0.007003548 0.003003914  2.331474  1.975196e-02
-factor(order)4 0.028614978 0.003004262  9.524795  2.121545e-21
 ```
 
-![](Within-Transect_Models_files/figure-html/Woods_VWC-5.png)<!-- -->
 
+## Photon Flux Density
 
-## Photosynthetically Active Radiation
+### Meadow PFD
 
-### Meadow PAR
+The model that includes transect order is better than the base temporal model for meadow PFD.  
 
-The model that includes transect order is better than the base temporal model for meadow PAR.  
-
-There are no differences between positions 1 and 2, but 3 and 4 have increasingly lower PAR, with a maximum difference of 108 µmol/m<sup>2</sup>/s between position 2 and 4.  The difference between 1 and 3 is not significant (p = 0.08), but the difference between 1 and 4 is.  
+There are no differences between positions 1 and 2, but 3 and 4 have increasingly lower PFD, with a maximum difference of 108 µmol/m<sup>2</sup>/s between position 2 and 4.  The difference between 1 and 3 is not significant (p = 0.08), but the difference between 1 and 4 is.  
 
 This pattern can probably be explained by the increasing vegetation, especially in positions 3 and 4 that must be adding a small amount of shade.
 
 
-![](Within-Transect_Models_files/figure-html/Meadow_PAR-1.png)<!-- -->
+![](Within-Transect_Models_files/figure-html/Meadow_PFD-1.png)<!-- -->
 
 ```
                  dAICc  df
-m.par.ar1$lme       0.0 26
-m.par.uncorr$lme 4088.9 25
+m.pfd.ar1$lme       0.0 26
+m.pfd.uncorr$lme 4088.9 25
 
 Family: gaussian 
 Link function: identity 
 
 Formula:
-par ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T)
+pfd ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T)
 
 Parametric coefficients:
             Estimate Std. Error t value Pr(>|t|)    
@@ -1843,20 +1803,20 @@ R-sq.(adj) =  0.676
   Scale est. = 77877     n = 7216
 ```
 
-![](Within-Transect_Models_files/figure-html/Meadow_PAR-2.png)<!-- -->![](Within-Transect_Models_files/figure-html/Meadow_PAR-3.png)<!-- -->![](Within-Transect_Models_files/figure-html/Meadow_PAR-4.png)<!-- -->
+![](Within-Transect_Models_files/figure-html/Meadow_PFD-2.png)<!-- -->![](Within-Transect_Models_files/figure-html/Meadow_PFD-3.png)<!-- -->![](Within-Transect_Models_files/figure-html/Meadow_PFD-4.png)<!-- -->
 
 ```
                          dAICc  df
-m.par.ar1.factor$lme        0.0 29
-m.par.ar1.continuous$lme    0.8 27
-m.par.ar1$lme              31.2 26
-m.par.uncorr$lme         4120.1 25
+m.pfd.ar1.factor$lme        0.0 29
+m.pfd.ar1.continuous$lme    0.8 27
+m.pfd.ar1$lme              31.2 26
+m.pfd.uncorr$lme         4120.1 25
 
 Family: gaussian 
 Link function: identity 
 
 Formula:
-par ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T) + 
+pfd ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T) + 
     factor(order)
 
 Parametric coefficients:
@@ -2059,41 +2019,29 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 7216
 Number of Groups: 1 
-                  Estimate Std..Error    t.value      Pr...t..
-(Intercept)     393.225797   18.06553 21.7666343 8.919629e-102
-factor(order)2    3.587415   22.82002  0.1572048  8.750879e-01
-factor(order)3  -44.543618   22.63876 -1.9675821  4.915461e-02
-factor(order)4 -104.843788   22.64970 -4.6289267  3.740297e-06
-                  Estimate Std..Error    t.value      Pr...t..
-(Intercept)     393.225797   18.06553 21.7666343 8.919629e-102
-factor(order)2    3.587415   22.82002  0.1572048  8.750879e-01
-factor(order)3  -44.543618   22.63876 -1.9675821  4.915461e-02
-factor(order)4 -104.843788   22.64970 -4.6289267  3.740297e-06
 ```
 
-![](Within-Transect_Models_files/figure-html/Meadow_PAR-5.png)<!-- -->
+### Woods PFD
 
-### Woods PAR
+The model that includes transect order is better than the base temporal model for woods PFD.  
 
-The model that includes transect order is better than the base temporal model for woods PAR.  
-
-PAR increases from the highest position on the hill (position 1) to the bottom (position 4).  There are no significant differences between positions 1-3, but position 4 has significantly higher par, with a maximum difference of 18.7 µmol/m<sup>2</sup>/s between position 1 and 4.  
+PFD increases from the highest position on the hill (position 1) to the bottom (position 4).  There are no significant differences between positions 1-3, but position 4 has significantly higher pfd, with a maximum difference of 18.7 µmol/m<sup>2</sup>/s between position 1 and 4.  
 
 It's unclear what explains this difference. Perhaps light is coming from the forest edge?
 
 
-![](Within-Transect_Models_files/figure-html/Woods_PAR-1.png)<!-- -->
+![](Within-Transect_Models_files/figure-html/Woods_PFD-1.png)<!-- -->
 
 ```
                  dAICc df
-w.par.ar1$lme      0.0 26
-w.par.uncorr$lme 455.9 25
+w.pfd.ar1$lme      0.0 26
+w.pfd.uncorr$lme 455.9 25
 
 Family: gaussian 
 Link function: identity 
 
 Formula:
-par ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T)
+pfd ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T)
 
 Parametric coefficients:
             Estimate Std. Error t value Pr(>|t|)    
@@ -2112,20 +2060,20 @@ R-sq.(adj) =  0.213
   Scale est. = 4590.7    n = 8435
 ```
 
-![](Within-Transect_Models_files/figure-html/Woods_PAR-2.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_PAR-3.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_PAR-4.png)<!-- -->
+![](Within-Transect_Models_files/figure-html/Woods_PFD-2.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_PFD-3.png)<!-- -->![](Within-Transect_Models_files/figure-html/Woods_PFD-4.png)<!-- -->
 
 ```
                          dAICc df
-w.par.ar1.factor$lme       0.0 29
-w.par.ar1.continuous$lme   6.6 27
-w.par.ar1$lme             53.4 26
-w.par.uncorr$lme         509.3 25
+w.pfd.ar1.factor$lme       0.0 29
+w.pfd.ar1.continuous$lme   6.6 27
+w.pfd.ar1$lme             53.4 26
+w.pfd.uncorr$lme         509.3 25
 
 Family: gaussian 
 Link function: identity 
 
 Formula:
-par ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T) + 
+pfd ~ s(day.min, bs = "cc", k = 96) + s(minute, k = 23, fx = T) + 
     factor(order)
 
 Parametric coefficients:
@@ -2328,36 +2276,89 @@ Standardized Within-Group Residuals:
 
 Number of Observations: 8435
 Number of Groups: 1 
-                Estimate Std..Error   t.value     Pr...t..
-(Intercept)    37.673204   1.850898 20.354012 6.381009e-90
-factor(order)2  2.924220   2.617563  1.117154 2.639609e-01
-factor(order)3  5.051529   2.617563  1.929859 5.365814e-02
-factor(order)4 18.738473   2.617876  7.157891 8.887608e-13
 ```
-
-![](Within-Transect_Models_files/figure-html/Woods_PAR-5.png)<!-- -->
 
 
 
 ```
-  X     Estimate  Std..Error    t.value      Pr...t..         var transect
-1 1  19.32071164  0.40059219  48.230375  0.000000e+00 Temperature   Meadow
-2 2  17.36923260  0.54506095  -3.580295  3.444576e-04 Temperature    Woods
-3 3  80.58038323  1.02522545  78.597721  0.000000e+00    Humidity   Meadow
-4 4  84.82245324  1.39557757   3.039652  2.373223e-03    Humidity    Woods
-5 5   0.22925152  0.01278042  17.937714  3.108755e-71         VWC   Meadow
-6 6   0.09405274  0.01726872  -7.829116  5.227441e-15         VWC    Woods
-7 7 348.50562491  9.68743759  35.975006 2.367309e-272         Par   Meadow
-8 8  47.36729865 13.23131483 -22.759516 7.864719e-113         Par    Woods
-        upper        lower
-1  19.7213038  18.92011946
-2  17.9142936  16.82417165
-3  81.6056087  79.55515779
-4  86.2180308  83.42687567
-5   0.2420319   0.21647110
-6   0.1113215   0.07678402
-7 358.1930625 338.81818732
-8  60.5986135  34.13598382
+        Estimate   Std..Error      t.value      Pr...t..         mean
+1   1.932071e+01  0.400592189  48.23037541  0.000000e+00  19.32071164
+2   1.736923e+01  0.545060954  -3.58029506  3.444576e-04  17.36923260
+3   8.058038e+01  1.025225446  78.59772064  0.000000e+00  80.58038323
+4   8.482245e+01  1.395577567   3.03965190  2.373223e-03  84.82245324
+5   2.292515e-01  0.012780420  17.93771437  3.108755e-71   0.22925152
+6   9.405274e-02  0.017268716  -7.82911620  5.227441e-15   0.09405274
+7   3.485056e+02  9.687437595  35.97500593 2.367309e-272 348.50562491
+8   4.736730e+01 13.231314829 -22.75951636 7.864719e-113  47.36729865
+9   1.905131e+01  0.645024063  29.53580643 5.384916e-179  19.05130587
+10  4.862130e-01  0.893422466   0.54421402  5.863147e-01  19.53751890
+11 -2.176798e-01  0.901307634  -0.24151549  8.091640e-01  18.83362611
+12  1.751014e+01  0.506390754  34.57831322 5.416931e-242  17.51013811
+13  1.107906e-01  0.714003778   0.15516807  8.766933e-01  17.62092869
+14  1.352927e-01  1.001138754   0.13513880  8.925060e-01  17.64543080
+15 -4.116333e-02  0.714085036  -0.05764486  9.540332e-01  17.46897478
+16  7.742925e+01  1.467463401  52.76400690  0.000000e+00  77.42924900
+17  9.422413e-01  2.032518356   0.46358315  6.429634e-01  78.37149027
+18  8.000070e+00  2.050311002   3.90188119  9.650376e-05  85.42931894
+19  8.385248e+01  1.663826212  50.39737751  0.000000e+00  83.85247773
+20  3.099921e+00  2.346659983   1.32099268  1.865468e-01  86.95239838
+21 -2.068004e+00  3.348761150  -0.61754302  5.368966e-01  81.78447364
+22  1.333362e+00  2.346932632   0.56812966  5.699651e-01  85.18583976
+23  1.914203e-01  0.008693279  22.01934173 4.924154e-104   0.19142027
+24 -7.696305e-04  0.011137765  -0.06910098  9.449112e-01   0.19065064
+25  3.713935e-02  0.011049389   3.36121334  7.800609e-04   0.22855962
+26  1.113487e-01  0.011072781  10.05607642  1.237864e-23   0.30276900
+27  6.686197e-02  0.002127152  31.43261981 4.154601e-205   0.06686197
+28  8.179463e-02  0.003003914  27.22934820 1.629478e-156   0.14865660
+29  7.003548e-03  0.003003914   2.33147407  1.975196e-02   0.07386552
+30  2.861498e-02  0.003004262   9.52479468  2.121545e-21   0.09547695
+31  3.932258e+02 18.065530543  21.76663433 8.919629e-102 393.22579727
+32  3.587415e+00 22.820015959   0.15720476  8.750879e-01 396.81321236
+33 -4.454362e+01 22.638759995  -1.96758207  4.915461e-02 348.68217903
+34 -1.048438e+02 22.649696987  -4.62892674  3.740297e-06 288.38200924
+35  3.767320e+01  1.850898160  20.35401236  6.381009e-90  37.67320401
+36  2.924220e+00  2.617563307   1.11715354  2.639609e-01  40.59742413
+37  5.051529e+00  2.617563307   1.92985935  5.365814e-02  42.72473303
+38  1.873847e+01  2.617876193   7.15789130  8.887608e-13  56.41167724
+   order         var transect           type        upper        lower
+1      5 Temperature   Meadow Between Meadow  19.72130383  18.92011946
+2      5 Temperature    Woods  Between Woods  17.91429356  16.82417165
+3      5    Humidity   Meadow Between Meadow  81.60560868  79.55515779
+4      5    Humidity    Woods  Between Woods  86.21803081  83.42687567
+5      5         VWC   Meadow Between Meadow   0.24203194   0.21647110
+6      5         VWC    Woods  Between Woods   0.11132145   0.07678402
+7      5         PFD   Meadow Between Meadow 358.19306251 338.81818732
+8      5         PFD    Woods  Between Woods  60.59861348  34.13598382
+9      2 Temperature   Meadow         Meadow  19.69632993  18.40628180
+10     3 Temperature   Meadow         Meadow  20.43094136  18.64409643
+11     4 Temperature   Meadow         Meadow  19.73493375  17.93231848
+12     1 Temperature    Woods          Woods  18.01652886  17.00374735
+13     2 Temperature    Woods          Woods  18.33493247  16.90692492
+14     3 Temperature    Woods          Woods  18.64656955  16.64429204
+15     4 Temperature    Woods          Woods  18.18305981  16.75488974
+16     2    Humidity   Meadow         Meadow  78.89671240  75.96178560
+17     3    Humidity   Meadow         Meadow  80.40400863  76.33897191
+18     4    Humidity   Meadow         Meadow  87.47962994  83.37900793
+19     1    Humidity    Woods          Woods  85.51630394  82.18865151
+20     2    Humidity    Woods          Woods  89.29905836  84.60573840
+21     3    Humidity    Woods          Woods  85.13323479  78.43571249
+22     4    Humidity    Woods          Woods  87.53277239  82.83890713
+23     1         VWC   Meadow         Meadow   0.20011355   0.18272699
+24     2         VWC   Meadow         Meadow   0.20178841   0.17951288
+25     3         VWC   Meadow         Meadow   0.23960901   0.21751023
+26     4         VWC   Meadow         Meadow   0.31384178   0.29169622
+27     1         VWC    Woods          Woods   0.06898912   0.06473482
+28     2         VWC    Woods          Woods   0.15166051   0.14565268
+29     3         VWC    Woods          Woods   0.07686943   0.07086160
+30     4         VWC    Woods          Woods   0.09848121   0.09247268
+31     1         PFD   Meadow         Meadow 411.29132782 375.16026673
+32     2         PFD   Meadow         Meadow 419.63322832 373.99319640
+33     3         PFD   Meadow         Meadow 371.32093902 326.04341903
+34     4         PFD   Meadow         Meadow 311.03170623 265.73231226
+35     1         PFD    Woods          Woods  39.52410217  35.82230585
+36     2         PFD    Woods          Woods  43.21498744  37.97986083
+37     3         PFD    Woods          Woods  45.34229634  40.10716973
+38     4         PFD    Woods          Woods  59.02955344  53.79380105
 ```
 
 ![](Within-Transect_Models_files/figure-html/within-transects plots-1.png)<!-- -->
@@ -2366,7 +2367,7 @@ factor(order)4 18.738473   2.617876  7.157891 8.887608e-13
 
 
 ```
-R version 3.4.2 (2017-09-28)
+R version 3.4.3 (2017-11-30)
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 Running under: Windows 7 x64 (build 7601) Service Pack 1
 
@@ -2384,22 +2385,30 @@ attached base packages:
 [8] base     
 
 other attached packages:
-[1] bindrcpp_0.2    dplyr_0.7.4     bbmle_1.0.20    mgcv_1.8-20    
-[5] nlme_3.1-131    lubridate_1.6.0 tidyr_0.8.0     cowplot_0.7.0  
-[9] ggplot2_2.2.1  
+ [1] bindrcpp_0.2.2  maptools_0.9-4  sp_1.3-1        rgeos_0.3-28   
+ [5] bbmle_1.0.20    mgcv_1.8-22     nlme_3.1-131    lubridate_1.7.4
+ [9] forcats_0.3.0   stringr_1.3.0   dplyr_0.7.6     purrr_0.2.4    
+[13] readr_1.1.1     tidyr_0.8.0     tibble_1.4.2    tidyverse_1.2.1
+[17] cowplot_0.9.3   ggplot2_3.0.0  
 
 loaded via a namespace (and not attached):
- [1] Rcpp_0.12.16      pillar_1.1.0      compiler_3.4.2   
- [4] plyr_1.8.4        bindr_0.1         tools_3.4.2      
- [7] digest_0.6.12     evaluate_0.10     tibble_1.4.2     
-[10] gtable_0.2.0      lattice_0.20-35   pkgconfig_2.0.1  
-[13] rlang_0.2.0       Matrix_1.2-11     yaml_2.1.14      
-[16] stringr_1.3.0     knitr_1.17        rprojroot_1.2    
-[19] grid_3.4.2        glue_1.2.0        R6_2.2.1         
-[22] rmarkdown_1.7     purrr_0.2.4       magrittr_1.5     
-[25] codetools_0.2-15  backports_1.1.0   scales_0.5.0     
-[28] htmltools_0.3.6   assertthat_0.2.0  colorspace_1.3-2 
-[31] numDeriv_2016.8-1 labeling_0.3      stringi_1.1.7    
-[34] lazyeval_0.2.1    munsell_0.4.3    
+ [1] tidyselect_0.2.4  reshape2_1.4.3    haven_1.1.1      
+ [4] lattice_0.20-35   colorspace_1.3-2  htmltools_0.3.6  
+ [7] yaml_2.1.18       rlang_0.2.2       pillar_1.2.2     
+[10] foreign_0.8-69    glue_1.2.0        withr_2.1.2      
+[13] modelr_0.1.1      readxl_1.1.0      bindr_0.1.1      
+[16] plyr_1.8.4        munsell_0.4.3     gtable_0.2.0     
+[19] cellranger_1.1.0  rvest_0.3.2       codetools_0.2-15 
+[22] psych_1.8.4       evaluate_0.10.1   labeling_0.3     
+[25] knitr_1.20        parallel_3.4.3    broom_0.4.4      
+[28] Rcpp_0.12.16      scales_0.5.0      backports_1.1.2  
+[31] jsonlite_1.5      mnormt_1.5-5      hms_0.4.2        
+[34] digest_0.6.15     stringi_1.1.7     numDeriv_2016.8-1
+[37] grid_3.4.3        rprojroot_1.3-2   cli_1.0.0        
+[40] tools_3.4.3       magrittr_1.5      lazyeval_0.2.1   
+[43] crayon_1.3.4      pkgconfig_2.0.1   Matrix_1.2-12    
+[46] xml2_1.2.0        assertthat_0.2.0  rmarkdown_1.9    
+[49] httr_1.3.1        rstudioapi_0.7    R6_2.2.2         
+[52] compiler_3.4.3   
 ```
 

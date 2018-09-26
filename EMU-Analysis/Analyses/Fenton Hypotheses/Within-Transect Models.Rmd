@@ -37,11 +37,11 @@ knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
 
 This analysis is looking for microenvironmental differences or gradients within transects.
 
-We're using this [GAM approach](http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/).  In this approach, there are two smoothers (as Robi suggested).  One smoother is a cubic spline that accounts for intra-day variation.  Then a second spline is fitted to account for temporal variation that is not intra-day.  
+We're using this [GAM approach](http://www.fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/).  In this approach, there are two smoothers.  One smoother is a cubic spline that accounts for intra-day variation.  Then a second spline is fitted to account for temporal variation that is not intra-day.  
 
-Readings have temporal autocorrelation, therefore, we add an autoregressive moving average correlation structure (corAR1). We set the form here to account for autocorrelation separately for each transect position, treating positions as independent.  In every case, accounting for autocorrelation improves the models considerably, however, significant autocorrelation is still unaccounted for.  Zuur et. al. say that it's usually not worth finding the optimal autocorrelation structure.  
+Readings have temporal autocorrelation, therefore, we add an autoregressive moving average correlation structure (corAR1). We set the form here to account for autocorrelation separately for each transect position, treating positions as independent.  In every case, accounting for autocorrelation improves the models considerably, however, some autocorrelation is still unaccounted for.  Zuur et. al. say that it's usually not worth finding the optimal autocorrelation structure.  
 
-After all temporal effects are accounted for, we test for differences among transect positions separately for each transect (woods and meadow) and each variable (temperature, humidity, vwc, par).
+After all temporal effects are accounted for, we test for differences among transect positions separately for each transect (woods and meadow) and each variable (temperature, humidity, vwc, pfd).
 
 We do this with two models: in one the transect positions are treated as individual factors, and there is no explicit spatial trend.  In the other, transect positions are treated as a continuous variable, testing for a gradient.
 
@@ -50,8 +50,8 @@ We do this with two models: in one the transect positions are treated as individ
 1. The woods VWC should increase (wetter) from 1 to 4, moving down the hill (no, but heterogeneity)
 2. The meadow VWC should increase (wetter) from 1 to 4, moving into the swamp (yes)
 3. The woods temperature should get cooler from 1 to 4, moving down the hill (no)
-4. There should be no difference in PAR, or in temperature @ the meadow
-    1. In fact, there are slight gradients in PAR in both sites, especially the meadow
+4. There should be no difference in PFD, or in temperature @ the meadow
+    1. In fact, there are slight gradients in PFD in both sites, especially the meadow
     2. No differences in temp at the meadow
 5. Humidity is unclear, but perhaps it would mirror soil moisture patterns
     1. No gradient, but some heterogeneity (in the meadow)
@@ -72,12 +72,12 @@ We do this with two models: in one the transect positions are treated as individ
 
 # Load Packages
 require(cowplot) # Needed for publication-quality ggplots
-require(tidyr) # Needed for data wrangling
+require(tidyverse) # Needed for data wrangling
 require(lubridate) # Needed for date wrangling
 require(mgcv) # Needed for gams
 require(bbmle) # Needed for AICc
-#require(forecast) # Needed for auto.arima(), find optimal ARMA structure
-require(dplyr) # Needed for data wrangling, load last to avoid conflicts
+require(rgeos) # Required for dawn/dusk times
+require(maptools) # Required for dawn/dusk times
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@ Data Preparation
@@ -147,7 +147,7 @@ m.temp.data <- fenton %>%
     filter(source == "EMU", !is.na(temperature), transect == "Meadow", order != 1)
     
 
-# Make a dataset for the meadow EMU temperatures
+# Make a dataset for the woods EMU temperatures
 w.temp.data <- fenton %>%
 
     # Filter only EMU data with a temperature from the meadow
@@ -166,7 +166,7 @@ m.humid.data <- fenton %>%
         transect == "Meadow", order != 1)
 
 
-# Make a dataset for the meadow EMU humidity
+# Make a dataset for the woods EMU humidity
 w.humid.data <- fenton %>%
 
     # Filter only EMU data with a humidity from the meadow
@@ -184,35 +184,58 @@ m.vwc.data <- fenton %>%
     filter(source == "EMU", !is.na(vwc), transect == "Meadow")
 
 
-# Make a dataset for the meadow EMU vwc
+# Make a dataset for the woods EMU vwc
 w.vwc.data <- fenton %>%
 
     # Filter only EMU data with a vwc from the meadow
     filter(source == "EMU", !is.na(vwc), transect == "Woods") 
 
 
-#### PAR #####
+#### PFD #####
 
 
-# Make a dataset for the meadow EMU par
-m.par.data <- fenton %>%
+# Make a dataset for the meadow EMU pfd
+m.pfd.data <- fenton %>%
 
-    # Filter only EMU data with a temperature from the meadow
-    filter(source == "EMU", !is.na(par), transect == "Meadow")
-
-
-# Make a dataset for the meadow EMU par
-w.par.data <- fenton %>%
-
-    # Filter only EMU data with a temperature from the meadow
-    filter(source == "EMU", !is.na(par), transect == "Woods")
+    # Filter only EMU data with a pfd from the meadow
+    filter(source == "EMU", !is.na(pfd), transect == "Meadow")
 
 
-##### Darkness Hours #####
+# Make a dataset for the woods EMU pfd
+w.pfd.data <- fenton %>%
 
-# Figure out hours for darkness
-darkness <- data.frame(dusk = seq(from = 8, to = 528, by = 24), 
-        dawn = seq(from = 17, to = 528, by = 24))
+    # Filter only EMU data with a pfd from the meadow
+    filter(source == "EMU", !is.na(pfd), transect == "Woods")
+
+
+# Dawn/Dusk times dataset
+# See: http://rstudio-pubs-static.s3.amazonaws.com/17282_9510673f07294de7905e11c7f2b043a5.html
+
+# Create a coordinate for the Fenton site
+fenton.coord <- matrix(c(-72.238159, 41.825076), nrow = 1) %>%
+    SpatialPoints(proj4string = CRS("+proj=longlat +datum=WGS84"))
+
+# Create a data frame with dawn and dusk times with the following start/end dates for the project
+darkness <- data.frame(date = seq(from = as.POSIXct("2017-05-30"), 
+     to = as.POSIXct("2017-06-21"), by = "day")) %>%
+     
+     # Add dawn times
+     mutate(dawn.time = crepuscule(fenton.coord, date, solarDep = 6, 
+         direction = "dawn", POSIXct.out = TRUE)$time) %>%
+  
+     # Add dusk times
+     mutate(dusk.time = crepuscule(fenton.coord, date, solarDep = 6, 
+         direction = "dusk", POSIXct.out = TRUE)$time) %>%
+    
+     # Convert dawn and dusk times to hours since the start
+     mutate(
+         dusk = round(interval(as.POSIXct("2017-05-30 12:00"), lag(dusk.time)) /
+            dhours(1)),
+         dawn = round(interval(as.POSIXct("2017-05-30 12:00"), dawn.time) /
+            dhours(1))) %>%
+    
+    # Get rid of the first day
+    filter(date >= as.POSIXct("2017-05-31"))
 
 ```
 
@@ -246,10 +269,6 @@ pacf(resid(m.temp.uncorr$lme), lag.max = 96, main = "pACF")
 # Reset the layout
 layout(1)
 
-# Find the optimal ARMA
-#auto.arima(resid(w.temp.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
-
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
@@ -262,13 +281,7 @@ m.temp.ar1 <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) +
 # Compare models
 AICctab(m.temp.uncorr$lme, m.temp.ar1$lme, nobs = nrow(m.temp.data))
 
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(m.temp.ar1$lme)
+# Show model summary
 summary(m.temp.ar1$gam)
 
 # Set graphs to 1 row x 2 columns
@@ -320,38 +333,6 @@ summary(m.temp.ar1.factor$gam)
 summary(m.temp.ar1.factor$lme)
 
 
-# Make plot of mean and SE of Temp (from model), based on transect order
-
-mead.temp.df <- summary(m.temp.ar1.factor$gam)$p.table %>% data.frame
-mead.temp.df
-
-mead.temp.df$mean <- mead.temp.df$Estimate
-mead.temp.df$mean[2:length(mead.temp.df$Estimate)] <- mead.temp.df$Estimate[1] + mead.temp.df$Estimate[2:length(mead.temp.df$Estimate)]
-
-mead.temp.df$order <-  levels(as.factor(m.temp.data$order))
-
-mead.temp.df <- mead.temp.df %>%
-    
-    mutate(upper = mean + Std..Error, 
-           
-           lower = mean - Std..Error, 
-           
-           transect = "Meadow")
-
-
-# plot it
-
-mead.temp.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean))+
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
-    
-    ggplot.theme
-
-
 ```
 
 ### Woods Temperature
@@ -378,10 +359,6 @@ pacf(resid(w.temp.uncorr$lme), lag.max = 96, main = "pACF")
 # Reset the layout
 layout(1)
 
-# Find the optimal ARMA
-#auto.arima(resid(w.temp.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
-
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
@@ -394,13 +371,7 @@ w.temp.ar1 <- gamm(temperature ~  s(day.min, bs = "cc", k = 96) +
 # Compare models
 AICctab(w.temp.uncorr$lme, w.temp.ar1$lme, nobs = nrow(w.temp.data))
 
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(w.temp.ar1$lme)
+# Show model summary
 summary(w.temp.ar1$gam)
 
 # Set graphs to 1 row x 2 columns
@@ -449,65 +420,6 @@ summary(w.temp.ar1.factor$gam)
 summary(w.temp.ar1.factor$lme)
 
 
-# Make plot of mean and SE of Temp (from model), based on transect order
-
-wood.temp.df <- summary(w.temp.ar1.factor$gam)$p.table %>% data.frame
-wood.temp.df
-
-wood.temp.df$mean <- wood.temp.df$Estimate
-wood.temp.df$mean[2:length(wood.temp.df$Estimate)] <- wood.temp.df$Estimate[1] + wood.temp.df$Estimate[2:length(wood.temp.df$Estimate)]
-
-wood.temp.df$order <-  levels(as.factor(w.temp.data$order))
-
-wood.temp.df <- wood.temp.df %>%
-    
-    mutate(upper = mean + Std..Error, 
-           
-           lower = mean - Std..Error, 
-           
-           transect = "Woods")
-
-# plot it
-
-wood.temp.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean))+
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
-    
-    ggplot.theme
-
-
-# Combine wood and meadow and plot together
-
-comb.temp.df <- rbind(mead.temp.df, wood.temp.df)
-
-comb.temp.plot <- 
-
-comb.temp.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean, color = transect), size = 2) +
-    
-    geom_line(aes(x = order, y = mean, color = transect, group = transect), size = 1) +
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper, color = transect), width = 0.1) +
-    
-    scale_color_manual(name = "Transect", values = c("red", "blue")) +
-    
-    xlab("EMU Number") + 
-    
-    ylab("Temperature") +
-    
-
-    ggplot.theme
-
-
-
-
 ```
 
 
@@ -537,10 +449,6 @@ pacf(resid(m.humid.uncorr$lme), lag.max = 96, main = "pACF")
 # Reset the layout
 layout(1)
 
-# Find the optimal ARMA
-#auto.arima(resid(m.humid.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
-
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
@@ -553,13 +461,7 @@ m.humid.ar1 <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) +
 # Compare models
 AICctab(m.humid.uncorr$lme, m.humid.ar1$lme, nobs = nrow(m.humid.data))
 
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(m.humid.ar1$lme)
+# Show model summary
 summary(m.humid.ar1$gam)
 
 # Set graphs to 1 row x 2 columns
@@ -609,37 +511,6 @@ AICctab(m.humid.uncorr$lme, m.humid.ar1$lme, m.humid.ar1.factor$lme,
 summary(m.humid.ar1.factor$gam)
 summary(m.humid.ar1.factor$lme)
 
-# Make plot of mean and SE of humid (from model), based on transect order
-
-mead.humid.df <- summary(m.humid.ar1.factor$gam)$p.table %>% data.frame
-mead.humid.df
-
-mead.humid.df$mean <- mead.humid.df$Estimate
-mead.humid.df$mean[2:length(mead.humid.df$Estimate)] <- mead.humid.df$Estimate[1] + mead.humid.df$Estimate[2:length(mead.humid.df$Estimate)]
-
-mead.humid.df$order <-  levels(as.factor(m.humid.data$order))
-
-mead.humid.df <- mead.humid.df %>%
-    
-    mutate(upper = mean + Std..Error, 
-           
-           lower = mean - Std..Error, 
-           
-           transect = "Meadow")
-
-
-# plot it
-
-mead.humid.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean))+
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
-    
-    ggplot.theme
-
 
 ```
 
@@ -667,10 +538,6 @@ pacf(resid(w.humid.uncorr$lme), lag.max = 96, main = "pACF")
 # Reset the layout
 layout(1)
 
-# Find the optimal ARMA
-#auto.arima(resid(w.humid.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
-
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
@@ -683,13 +550,7 @@ w.humid.ar1 <- gamm(humidity ~  s(day.min, bs = "cc", k = 96) +
 # Compare models
 AICctab(w.humid.uncorr$lme, w.humid.ar1$lme, nobs = nrow(w.humid.data))
 
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(w.humid.ar1$lme)
+# Show model summary
 summary(w.humid.ar1$gam)
 
 # Set graphs to 1 row x 2 columns
@@ -740,63 +601,6 @@ summary(w.humid.ar1.factor$gam)
 summary(w.humid.ar1.factor$lme)
 
 
-# Make plot of mean and SE of humid (from model), based on transect order
-
-wood.humid.df <- summary(w.humid.ar1.factor$gam)$p.table %>% data.frame
-wood.humid.df
-
-wood.humid.df$mean <- wood.humid.df$Estimate
-wood.humid.df$mean[2:length(wood.humid.df$Estimate)] <- wood.humid.df$Estimate[1] + wood.humid.df$Estimate[2:length(wood.humid.df$Estimate)]
-
-wood.humid.df$order <-  levels(as.factor(w.humid.data$order))
-
-wood.humid.df <- wood.humid.df %>%
-    
-    mutate(upper = mean + Std..Error, 
-           
-           lower = mean - Std..Error, 
-           
-           transect = "Woods")
-
-# plot it
-
-wood.humid.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean))+
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
-    
-    ggplot.theme
-
-
-# Combine wood and meadow and plot together
-
-comb.humid.df <- rbind(mead.humid.df, wood.humid.df)
-
-comb.humid.plot <- 
-
-comb.humid.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean, color = transect), size = 2) +
-    
-    geom_line(aes(x = order, y = mean, color = transect, group = transect), size = 1) +
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper, color = transect), width = 0.1) +
-    
-    scale_color_manual(name = "Transect", values = c("red", "blue")) +
-    
-    xlab("EMU Number") + 
-    
-    ylab("Relative Humidity") +
-    
-
-    ggplot.theme
-
-
 ```
 
 
@@ -830,10 +634,6 @@ pacf(resid(m.vwc.uncorr$lme), lag.max = 96, main = "pACF")
 # Reset the layout
 layout(1)
 
-# Find the optimal ARMA
-#auto.arima(resid(m.vwc.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
-
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
@@ -846,13 +646,7 @@ m.vwc.ar1 <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) +
 # Compare models
 AICctab(m.vwc.uncorr$lme, m.vwc.ar1$lme, nobs = nrow(m.vwc.data))
 
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(m.vwc.ar1$lme)
+# Show model summary
 summary(m.vwc.ar1$gam)
 
 # Set graphs to 1 row x 2 columns
@@ -909,37 +703,6 @@ summary(m.vwc.ar1.continuous$lme)
 # Likelihood ratio test/ANOVA shows that the factor model is better
 anova(m.vwc.ar1$lme, m.vwc.ar1.factor$lme)
 
-# Make plot of mean and SE of vwc (from model), based on transect order
-
-mead.vwc.df <- summary(m.vwc.ar1.factor$gam)$p.table %>% data.frame
-mead.vwc.df
-
-mead.vwc.df$mean <- mead.vwc.df$Estimate
-mead.vwc.df$mean[2:length(mead.vwc.df$Estimate)] <- mead.vwc.df$Estimate[1] + mead.vwc.df$Estimate[2:length(mead.vwc.df$Estimate)]
-
-mead.vwc.df$order <-  levels(as.factor(m.vwc.data$order))
-
-mead.vwc.df <- mead.vwc.df %>%
-    
-    mutate(upper = mean + Std..Error, 
-           
-           lower = mean - Std..Error, 
-           
-           transect = "Meadow")
-
-
-# plot it
-
-mead.vwc.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean))+
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
-    
-    ggplot.theme
-
 ```
 
 ### Woods VWC
@@ -968,10 +731,6 @@ pacf(resid(w.vwc.uncorr$lme), lag.max = 96, main = "pACF")
 # Reset the layout
 layout(1)
 
-# Find the optimal ARMA
-#auto.arima(resid(w.vwc.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
-
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
@@ -985,13 +744,7 @@ w.vwc.ar1 <- gamm(vwc ~  s(day.min, bs = "cc", k = 96) +
 # Compare models
 AICctab(w.vwc.uncorr$lme, w.vwc.ar1$lme, nobs = nrow(w.vwc.data))
 
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(w.vwc.ar1$lme)
+# Show model summary
 summary(w.vwc.ar1$gam)
 
 # Set graphs to 1 row x 2 columns
@@ -1045,83 +798,25 @@ summary(w.vwc.ar1.factor$gam)
 summary(w.vwc.ar1.factor$lme)
 
 
-# Make plot of mean and SE of vwc (from model), based on transect order
-
-wood.vwc.df <- summary(w.vwc.ar1.factor$gam)$p.table %>% data.frame
-wood.vwc.df
-
-wood.vwc.df$mean <- wood.vwc.df$Estimate
-wood.vwc.df$mean[2:length(wood.vwc.df$Estimate)] <- wood.vwc.df$Estimate[1] + wood.vwc.df$Estimate[2:length(wood.vwc.df$Estimate)]
-
-wood.vwc.df$order <-  levels(as.factor(w.vwc.data$order))
-
-wood.vwc.df <- wood.vwc.df %>%
-    
-    mutate(upper = mean + Std..Error, 
-           
-           lower = mean - Std..Error, 
-           
-           transect = "Woods")
-
-# plot it
-
-wood.vwc.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean))+
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
-    
-    ggplot.theme
-
-
-# Combine wood and meadow and plot together
-
-comb.vwc.df <- rbind(mead.vwc.df, wood.vwc.df)
-
-comb.vwc.plot <- 
-
-comb.vwc.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean, color = transect), size = 2) +
-    
-    geom_line(aes(x = order, y = mean, color = transect, group = transect), size = 1) +
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper, color = transect), width = 0.1) +
-    
-    scale_color_manual(name = "Transect", values = c("red", "blue")) +
-    
-    xlab("EMU Number") + 
-    
-    ylab("VWC") +
-    
-
-    ggplot.theme
-
-
-
 ```
 
 
-## Photosynthetically Active Radiation
+## Photon Flux Density
 
-### Meadow PAR
+### Meadow PFD
 
-The model that includes transect order is better than the base temporal model for meadow PAR.  
+The model that includes transect order is better than the base temporal model for meadow PFD.  
 
-There are no differences between positions 1 and 2, but 3 and 4 have increasingly lower PAR, with a maximum difference of 108 µmol/m<sup>2</sup>/s between position 2 and 4.  The difference between 1 and 3 is not significant (p = 0.08), but the difference between 1 and 4 is.  
+There are no differences between positions 1 and 2, but 3 and 4 have increasingly lower PFD, with a maximum difference of 108 µmol/m<sup>2</sup>/s between position 2 and 4.  The difference between 1 and 3 is not significant (p = 0.08), but the difference between 1 and 4 is.  
 
 This pattern can probably be explained by the increasing vegetation, especially in positions 3 and 4 that must be adding a small amount of shade.
 
 
-```{r 'Meadow_PAR', echo = F, comment = ""}
+```{r 'Meadow_PFD', echo = F, comment = ""}
 
 # Construct an uncorrelated gam with the two smoothers
-m.par.uncorr <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute, k = 23, fx = T), data = m.par.data)
+m.pfd.uncorr <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute, k = 23, fx = T), data = m.pfd.data)
 
 ##### Autocorrelation #####
 
@@ -1129,49 +824,39 @@ m.par.uncorr <- gamm(par ~  s(day.min, bs = "cc", k = 96) +
 layout(matrix(1:2, ncol = 2))
 
 # plot of autocorrelation in variances
-acf(resid(m.par.uncorr$lme), lag.max = 96, main = "ACF")
-pacf(resid(m.par.uncorr$lme), lag.max = 96, main = "pACF")
+acf(resid(m.pfd.uncorr$lme), lag.max = 96, main = "ACF")
+pacf(resid(m.pfd.uncorr$lme), lag.max = 96, main = "pACF")
 
 # Reset the layout
 layout(1)
-
-# Find the optimal ARMA
-#auto.arima(resid(m.par.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
 
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
 
 # p = 1, q = 0 (AR1), grouped by order
-m.par.ar1 <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute, k = 23, fx = T), data = m.par.data,
+m.pfd.ar1 <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute, k = 23, fx = T), data = m.pfd.data,
     correlation = corAR1(form = ~ 1|order))
 
 # Compare models
-AICctab(m.par.uncorr$lme, m.par.ar1$lme, nobs = nrow(m.par.data))
+AICctab(m.pfd.uncorr$lme, m.pfd.ar1$lme, nobs = nrow(m.pfd.data))
 
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(m.par.ar1$lme)
-summary(m.par.ar1$gam)
+# Show model summary
+summary(m.pfd.ar1$gam)
 
 # Set graphs to 1 row x 2 columns
 layout(matrix(1:2, ncol = 2))
 
 # plot of autocorrelation in variances
-acf(resid(m.par.ar1$lme, type = "normalized"), lag.max = 96, main = "ACF")
-pacf(resid(m.par.ar1$lme, type = "normalized"), lag.max = 96, main = "pACF")
+acf(resid(m.pfd.ar1$lme, type = "normalized"), lag.max = 96, main = "ACF")
+pacf(resid(m.pfd.ar1$lme, type = "normalized"), lag.max = 96, main = "pACF")
 
 # Reset the layout
 layout(1)
 
 # Plot residuals over time
-plot(m.par.ar1$lme, resid(.) ~ minute)
+plot(m.pfd.ar1$lme, resid(.) ~ minute)
 
 
 ##### Model Temporal Fit #####
@@ -1180,7 +865,7 @@ plot(m.par.ar1$lme, resid(.) ~ minute)
 layout(matrix(1:2, ncol = 2))
 
 # Plot the two smoothers
-plot(m.par.ar1$gam, shade = T, residuals = T, ylab = "PFD (µmol m−2 s−1)", 
+plot(m.pfd.ar1$gam, shade = T, residuals = T, ylab = "PFD (µmol m−2 s−1)", 
      main = "Meadow PFD")
 
 # Reset the layout
@@ -1190,88 +875,41 @@ layout(1)
 ##### Transect Order #####
 
 # Fit a model with transect order as a factor
-m.par.ar1.factor <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+m.pfd.ar1.factor <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
     s(minute, k = 23, fx = T) + factor(order), 
-    data = m.par.data, correlation = corAR1(form = ~ 1|order))
+    data = m.pfd.data, correlation = corAR1(form = ~ 1|order))
 
 # Fit a model with continuous transect order
-m.par.ar1.continuous <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+m.pfd.ar1.continuous <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
     s(minute, k = 23, fx = T) + order, 
-    data = m.par.data, correlation = corAR1(form = ~ 1|order))
+    data = m.pfd.data, correlation = corAR1(form = ~ 1|order))
 
-# Test whether there are differences in par along the transect
-AICctab(m.par.uncorr$lme, m.par.ar1$lme, m.par.ar1.factor$lme, 
-    m.par.ar1.continuous$lme, nobs = nrow(m.par.data))
+# Test whether there are differences in pfd along the transect
+AICctab(m.pfd.uncorr$lme, m.pfd.ar1$lme, m.pfd.ar1.factor$lme, 
+    m.pfd.ar1.continuous$lme, nobs = nrow(m.pfd.data))
 
 # Show the summary for the transect order
-summary(m.par.ar1.factor$gam)
-summary(m.par.ar1.factor$lme)
-
-# Make plot of mean and SE of par (from model), based on transect order
-
-mead.par.df <- summary(m.par.ar1.factor$gam)$p.table %>% data.frame
-mead.par.df
-
-mead.par.df$mean <- mead.par.df$Estimate
-mead.par.df$mean[2:length(mead.par.df$Estimate)] <- mead.par.df$Estimate[1] + mead.par.df$Estimate[2:length(mead.par.df$Estimate)]
-
-mead.par.df$order <-  levels(as.factor(m.par.data$order))
-
-mead.par.df <- mead.par.df %>%
-    
-    mutate(upper = mean + Std..Error, 
-           
-           lower = mean - Std..Error, 
-           
-           transect = "Meadow")
-
-# Make plot of mean and SE of par (from model), based on transect order
-
-mead.par.df <- summary(m.par.ar1.factor$gam)$p.table %>% data.frame
-mead.par.df
-
-mead.par.df$mean <- mead.par.df$Estimate
-mead.par.df$mean[2:length(mead.par.df$Estimate)] <- mead.par.df$Estimate[1] + mead.par.df$Estimate[2:length(mead.par.df$Estimate)]
-
-mead.par.df$order <-  levels(as.factor(m.par.data$order))
-
-mead.par.df <- mead.par.df %>%
-    
-    mutate(upper = mean + Std..Error, 
-           
-           lower = mean - Std..Error, 
-           
-           transect = "Meadow")
+summary(m.pfd.ar1.factor$gam)
+summary(m.pfd.ar1.factor$lme)
 
 
-# plot it
-
-mead.par.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean))+
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
-    
-    ggplot.theme
 
 ```
 
-### Woods PAR
+### Woods PFD
 
-The model that includes transect order is better than the base temporal model for woods PAR.  
+The model that includes transect order is better than the base temporal model for woods PFD.  
 
-PAR increases from the highest position on the hill (position 1) to the bottom (position 4).  There are no significant differences between positions 1-3, but position 4 has significantly higher par, with a maximum difference of 18.7 µmol/m<sup>2</sup>/s between position 1 and 4.  
+PFD increases from the highest position on the hill (position 1) to the bottom (position 4).  There are no significant differences between positions 1-3, but position 4 has significantly higher pfd, with a maximum difference of 18.7 µmol/m<sup>2</sup>/s between position 1 and 4.  
 
 It's unclear what explains this difference. Perhaps light is coming from the forest edge?
 
 
-```{r 'Woods_PAR', echo = F, comment = ""}
+```{r 'Woods_PFD', echo = F, comment = ""}
     
 # Construct an uncorrelated gam with the two smoothers
-w.par.uncorr <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute, k = 23, fx = T), data = w.par.data)
+w.pfd.uncorr <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute, k = 23, fx = T), data = w.pfd.data)
 
 ##### Autocorrelation #####
 
@@ -1279,49 +917,39 @@ w.par.uncorr <- gamm(par ~  s(day.min, bs = "cc", k = 96) +
 layout(matrix(1:2, ncol = 2))
 
 # plot of autocorrelation in variances
-acf(resid(w.par.uncorr$lme), lag.max = 96, main = "ACF")
-pacf(resid(w.par.uncorr$lme), lag.max = 96, main = "pACF")
+acf(resid(w.pfd.uncorr$lme), lag.max = 96, main = "ACF")
+pacf(resid(w.pfd.uncorr$lme), lag.max = 96, main = "pACF")
 
 # Reset the layout
 layout(1)
-
-# Find the optimal ARMA
-#auto.arima(resid(m.par.uncorr$lme, type = "normalized"), 
-#    stationary = TRUE, seasonal = FALSE)
 
 # ARMA Coefficients (non negative, default = 0)
 # p = autoregressive order
 # q = moving average order
 
 # p = 1, q = 0 (AR1), grouped by order
-w.par.ar1 <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
-    s(minute, k = 23, fx = T), data = w.par.data,
+w.pfd.ar1 <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
+    s(minute, k = 23, fx = T), data = w.pfd.data,
     correlation = corAR1(form = ~ 1|order))
 
 # Compare models
-AICctab(w.par.uncorr$lme, w.par.ar1$lme, nobs = nrow(w.par.data))
+AICctab(w.pfd.uncorr$lme, w.pfd.ar1$lme, nobs = nrow(w.pfd.data))
 
-# Look at the ar1 model
-# Note that the 1st phi coefficient is nearly one
-# Zuur says this "may indicate a more serious problem of the residuals being 
-# non-stationary (non-constant mean or variance)"
-# Also, a more complicated sinusoidal error structure may be more appropriate
-# (ie + correlations near, but - correlations farther away (day vs night))
-#summary(w.par.ar1$lme)
-summary(w.par.ar1$gam)
+# Show model summary
+summary(w.pfd.ar1$gam)
 
 # Set graphs to 1 row x 2 columns
 layout(matrix(1:2, ncol = 2))
 
 # plot of autocorrelation in variances
-acf(resid(m.par.ar1$lme, type = "normalized"), lag.max = 96, main = "ACF")
-pacf(resid(m.par.ar1$lme, type = "normalized"), lag.max = 96, main = "pACF")
+acf(resid(m.pfd.ar1$lme, type = "normalized"), lag.max = 96, main = "ACF")
+pacf(resid(m.pfd.ar1$lme, type = "normalized"), lag.max = 96, main = "pACF")
 
 # Reset the layout
 layout(1)
 
 # Plot residuals over time
-plot(w.par.ar1$lme, resid(., type = "normalized") ~ minute)
+plot(w.pfd.ar1$lme, resid(., type = "normalized") ~ minute)
 
 
 ##### Model Temporal Fit #####
@@ -1330,7 +958,7 @@ plot(w.par.ar1$lme, resid(., type = "normalized") ~ minute)
 layout(matrix(1:2, ncol = 2))
 
 # Plot the two smoothers
-plot(w.par.ar1$gam, shade = T, residuals = T, ylab = "PFD (µmol m−2s−1)", 
+plot(w.pfd.ar1$gam, shade = T, residuals = T, ylab = "PFD (µmol m−2s−1)", 
      main = "Woods PFD")
 
 # Reset the layout
@@ -1340,84 +968,371 @@ layout(1)
 ##### Transect Order #####
 
 # Fit a model with transect order as a factor
-w.par.ar1.factor <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+w.pfd.ar1.factor <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
     s(minute, k = 23, fx = T) + factor(order), 
-    data = w.par.data, correlation = corAR1(form = ~ 1|order))
+    data = w.pfd.data, correlation = corAR1(form = ~ 1|order))
 
 # Fit a model with continuous transect order
-w.par.ar1.continuous <- gamm(par ~  s(day.min, bs = "cc", k = 96) + 
+w.pfd.ar1.continuous <- gamm(pfd ~  s(day.min, bs = "cc", k = 96) + 
     s(minute, k = 23, fx = T) + order, 
-    data = w.par.data, correlation = corAR1(form = ~ 1|order))
+    data = w.pfd.data, correlation = corAR1(form = ~ 1|order))
 
-# Test whether there are differences in par along the transect
-AICctab(w.par.uncorr$lme, w.par.ar1$lme, w.par.ar1.factor$lme, 
-    w.par.ar1.continuous$lme, nobs = nrow(w.par.data))
+# Test whether there are differences in pfd along the transect
+AICctab(w.pfd.uncorr$lme, w.pfd.ar1$lme, w.pfd.ar1.factor$lme, 
+    w.pfd.ar1.continuous$lme, nobs = nrow(w.pfd.data))
 
 # Show the summary for the transect order
-summary(w.par.ar1.factor$gam)
-summary(w.par.ar1.factor$lme)
-
-# Make plot of mean and SE of par (from model), based on transect order
-
-wood.par.df <- summary(w.par.ar1.factor$gam)$p.table %>% data.frame
-wood.par.df
-
-wood.par.df$mean <- wood.par.df$Estimate
-wood.par.df$mean[2:length(wood.par.df$Estimate)] <- wood.par.df$Estimate[1] + wood.par.df$Estimate[2:length(wood.par.df$Estimate)]
-
-wood.par.df$order <-  levels(as.factor(w.par.data$order))
-
-wood.par.df <- wood.par.df %>%
-    
-    mutate(upper = mean + Std..Error, 
-           
-           lower = mean - Std..Error, 
-           
-           transect = "Woods")
-
-# plot it
-
-wood.par.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean))+
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper), width = 0.1)+
-    
-    ggplot.theme
-
-
-# Combine wood and meadow and plot together
-
-comb.par.df <- rbind(mead.par.df, wood.par.df)
-
-
-
-comb.par.plot <- 
-comb.par.df %>%
-    
-    ggplot()+
-    
-    geom_point(aes(x = order, y = mean, color = transect), size = 2) +
-    
-    geom_line(aes(x = order, y = mean, color = transect, group = transect), size = 1) +
-    
-    geom_errorbar(aes( x = order,  ymin = lower, ymax = upper, color = transect), width = 0.1) +
-    
-    scale_color_manual(name = "Transect", values = c("red", "blue")) +
-    
-    xlab("EMU Number") + 
-    
-    ylab("PFD") +
-
-    ggplot.theme
+summary(w.pfd.ar1.factor$gam)
+summary(w.pfd.ar1.factor$lme)
 
 
 ```
 
 
 ```{r 'within-transects plots', echo = F, comment = "", fig.height = 10, fig.width = 8}
+
+
+# Extract the meadow transect temp coefficients & convert to data frame
+mead.temp.df <- summary(m.temp.ar1.factor$gam)$p.table %>% data.frame %>%
+    
+    # Add columns
+    mutate(
+        
+        # Mean for each transect position
+        mean = ifelse(first(Estimate) == Estimate, Estimate, Estimate + first(Estimate)), 
+        
+        # The transect positions
+        order = levels(as.factor(m.temp.data$order)),
+        
+        # Transect & variable
+        var = "Temperature", transect = "Meadow", type = transect,      
+        
+        # Upper and lower standard errors
+        upper = mean + Std..Error,
+        lower = mean - Std..Error)
+        
+# Extract the woods transect temp coefficients & convert to data frame
+wood.temp.df <- summary(w.temp.ar1.factor$gam)$p.table %>% data.frame %>%
+
+    # Add columns
+    mutate(
+        
+        # Mean for each transect position
+        mean = ifelse(first(Estimate) == Estimate, Estimate, Estimate + first(Estimate)), 
+        
+        # The transect positions
+        order = levels(as.factor(w.temp.data$order)),
+        
+        # Transect & variable
+        var = "Temperature", transect = "Woods", type = transect,
+        
+        # Upper and lower standard errors
+        upper = mean + Std..Error,
+        lower = mean - Std..Error)
+
+# Extract the meadow transect humid coefficients & convert to data frame
+mead.humid.df <- summary(m.humid.ar1.factor$gam)$p.table %>% data.frame %>%
+    
+    # Add columns
+    mutate(
+        
+        # Mean for each transect position
+        mean = ifelse(first(Estimate) == Estimate, Estimate, Estimate + first(Estimate)), 
+        
+        # The transect positions
+        order = levels(as.factor(m.humid.data$order)),
+        
+        # Transect & variable
+        var = "Humidity", transect = "Meadow", type = transect,
+        
+        # Upper and lower standard errors
+        upper = mean + Std..Error,
+        lower = mean - Std..Error
+
+        )
+        
+# Extract the woods transect humid coefficients & convert to data frame
+wood.humid.df <- summary(w.humid.ar1.factor$gam)$p.table %>% data.frame %>%
+
+    # Add columns
+    mutate(
+        
+        # Mean for each transect position
+        mean = ifelse(first(Estimate) == Estimate, Estimate, Estimate + first(Estimate)), 
+        
+        # The transect positions
+        order = levels(as.factor(w.humid.data$order)),
+
+        # Transect & variable
+        var = "Humidity", transect = "Woods", type = transect,     
+        
+        # Upper and lower standard errors
+        upper = mean + Std..Error,
+        lower = mean - Std..Error
+
+        )
+
+# Extract the meadow transect vwc coefficients & convert to data frame
+mead.vwc.df <- summary(m.vwc.ar1.factor$gam)$p.table %>% data.frame %>%
+    
+    # Add columns
+    mutate(
+        
+        # Mean for each transect position
+        mean = ifelse(first(Estimate) == Estimate, Estimate, Estimate + first(Estimate)), 
+        
+        # The transect positions
+        order = levels(as.factor(m.vwc.data$order)),
+
+        # Transect & variable
+        var = "VWC", transect = "Meadow", type = transect,
+
+        # Upper and lower standard errors
+        upper = mean + Std..Error,
+        lower = mean - Std..Error
+
+        )
+        
+# Extract the woods transect vwc coefficients & convert to data frame
+wood.vwc.df <- summary(w.vwc.ar1.factor$gam)$p.table %>% data.frame %>%
+
+    # Add columns
+    mutate(
+        
+        # Mean for each transect position
+        mean = ifelse(first(Estimate) == Estimate, Estimate, Estimate + first(Estimate)), 
+        
+        # The transect positions
+        order = levels(as.factor(w.vwc.data$order)),
+        
+        # Transect & variable
+        var = "VWC", transect = "Woods", type = transect,
+        
+        # Upper and lower standard errors
+        upper = mean + Std..Error,
+        lower = mean - Std..Error
+
+        )
+
+
+# Extract the meadow transect pfd coefficients & convert to data frame
+mead.pfd.df <- summary(m.pfd.ar1.factor$gam)$p.table %>% data.frame %>%
+    
+    # Add columns
+    mutate(
+        
+        # Mean for each transect position
+        mean = ifelse(first(Estimate) == Estimate, Estimate, Estimate + first(Estimate)), 
+        
+        # The transect positions
+        order = levels(as.factor(m.pfd.data$order)),
+        
+        # Transect & variable
+        var = "PFD", transect = "Meadow", type = transect,
+        
+        # Upper and lower standard errors
+        upper = mean + Std..Error,
+        lower = mean - Std..Error, 
+
+        )
+        
+# Extract the woods transect pfd coefficients & convert to data frame
+wood.pfd.df <- summary(w.pfd.ar1.factor$gam)$p.table %>% data.frame %>%
+
+    # Add columns
+    mutate(
+        
+        # Mean for each transect position
+        mean = ifelse(first(Estimate) == Estimate, Estimate, Estimate + first(Estimate)), 
+        
+        # The transect positions
+        order = levels(as.factor(w.pfd.data$order)),
+        
+        # Transect & variable
+        var = "PFD", transect = "Woods", type = transect,
+        
+        # Upper and lower standard errors
+        upper = mean + Std..Error,
+        lower = mean - Std..Error
+
+        )
+
+
+
+
+# read in coefficients from the between transect model
+between <- read.csv("Analyses/Fenton Hypotheses/transect.coeff.csv")
+
+# Combine the between and within transect coefficients into one dataframe
+combined.df <- between %>%
+    
+    # Add columns for upper, lower, mean, and (fake) transect order
+    mutate(order = "5", 
+           upper = Estimate + Std..Error,
+           lower = Estimate - Std..Error, 
+           mean = Estimate,
+           type = paste("Between", transect)
+           ) %>%
+    
+    # Reorder columns
+    select(Estimate, Std..Error, t.value, Pr...t.., mean, order, 
+        var, transect, type, upper, lower) %>%
+
+    rbind(mead.temp.df, wood.temp.df, mead.humid.df, wood.humid.df, 
+        mead.vwc.df, wood.vwc.df, mead.pfd.df, wood.pfd.df)
+
+
+#combined.df
+
+
+comb.temp.plot <- combined.df %>%
+    
+    # Filter to only include temperature
+    filter(var == "Temperature") %>%
+    
+    # Plot 
+    ggplot(aes(x = order, y = mean, color = transect)) +
+    
+        # Add points for the model coefficients at each transect position
+        geom_point(size = 2) +
+    
+        # Add a line through the transect positions
+        geom_line(aes(group = type), size = 1) +
+        
+        # Add standard error bars to the points
+        geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
+        
+        # Change the colors to red and blue for the two transects
+        scale_color_manual(name = "Transect", values = c("red", "blue")) +
+        
+        # Add a dotted line between the within-transect coefficients and the between ones
+        geom_vline(xintercept = 4.5, lty = 2) + 
+    
+        # Only show the four transect positions
+        scale_x_discrete(breaks = 1:4) + 
+    
+        # Restrict X axis
+        coord_cartesian(xlim = c(1, 4.55)) +  
+        
+        # Add axis labels
+        xlab("EMU Number") + 
+        ylab("Temperature") +
+    
+        # Add the custom theme
+        ggplot.theme
+
+
+comb.humid.plot <- combined.df %>%
+    
+    # Filter to only include humidity
+    filter(var == "Humidity") %>%
+    
+    # Plot 
+    ggplot(aes(x = order, y = mean, color = transect)) +
+    
+        # Add points for the model coefficients at each transect position
+        geom_point(size = 2) +
+    
+        # Add a line through the transect positions
+        geom_line(aes(group = type), size = 1) +
+        
+        # Add standard error bars to the points
+        geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
+        
+        # Change the colors to red and blue for the two transects
+        scale_color_manual(name = "Transect", values = c("red", "blue")) +
+        
+        # Add a dotted line between the within-transect coefficients and the between ones
+        geom_vline(xintercept = 4.5, lty = 2) + 
+    
+        # Only show the four transect positions
+        scale_x_discrete(breaks = 1:4) + 
+    
+        # Restrict X axis
+        coord_cartesian(xlim = c(1, 4.55)) +  
+        
+        # Add axis labels
+        xlab("EMU Number") + 
+        ylab("Relative Humidity") +
+    
+        # Add the custom theme
+        ggplot.theme
+
+
+
+comb.vwc.plot <- combined.df %>%
+    
+    # Filter to only include vwc
+    filter(var == "VWC") %>%
+    
+    # Plot 
+    ggplot(aes(x = order, y = mean, color = transect)) +
+    
+        # Add points for the model coefficients at each transect position
+        geom_point(size = 2) +
+    
+        # Add a line through the transect positions
+        geom_line(aes(group = type), size = 1) +
+        
+        # Add standard error bars to the points
+        geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
+        
+        # Change the colors to red and blue for the two transects
+        scale_color_manual(name = "Transect", values = c("red", "blue")) +
+        
+        # Add a dotted line between the within-transect coefficients and the between ones
+        geom_vline(xintercept = 4.5, lty = 2) + 
+    
+        # Only show the four transect positions
+        scale_x_discrete(breaks = 1:4) + 
+    
+        # Restrict X axis
+        coord_cartesian(xlim = c(1, 4.55)) +  
+        
+        # Add axis labels
+        xlab("EMU Number") + 
+        ylab("VWC") +
+    
+        # Add the custom theme
+        ggplot.theme
+
+
+comb.pfd.plot <- combined.df %>%
+    
+    # Filter to only include pfd
+    filter(var == "PFD") %>%
+    
+    # Plot 
+    ggplot(aes(x = order, y = mean, color = transect)) +
+    
+        # Add points for the model coefficients at each transect position
+        geom_point(size = 2) +
+    
+        # Add a line through the transect positions
+        geom_line(aes(group = type), size = 1) +
+        
+        # Add standard error bars to the points
+        geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
+        
+        # Change the colors to red and blue for the two transects
+        scale_color_manual(name = "Transect", values = c("red", "blue")) +
+        
+        # Add a dotted line between the within-transect coefficients and the between ones
+        geom_vline(xintercept = 4.5, lty = 2) + 
+    
+        # Only show the four transect positions
+        scale_x_discrete(breaks = 1:4) + 
+    
+        # Restrict X axis
+        coord_cartesian(xlim = c(1, 4.55)) +  
+        
+        # Add axis labels
+        xlab("EMU Number") + 
+        ylab("PFD") +
+    
+        # Add the custom theme
+        ggplot.theme
+
 
 g_legend<-function(a.gplot){
   tmp <- ggplot_gtable(ggplot_build(a.gplot))
@@ -1428,77 +1343,27 @@ g_legend<-function(a.gplot){
 legend <- g_legend(comb.temp.plot)
 
 
-# read in coefficients from between transect model
-
-between <- read.csv("Analyses/Fenton Hypotheses/transect.coeff.csv")
-
-between$upper <- between$Estimate+between$Std..Error
-between$lower <- between$Estimate-between$Std..Error
-
-between
-
-
-comb.temp.plot <- 
-    
-comb.temp.plot  + 
-    
-    geom_point(data = filter(between, var=="Temperature"), aes(x = 4.5, y = Estimate, color = transect)) + 
-    
-    geom_vline(xintercept = 4.25, lty = 2) + 
-    
-    geom_errorbar(data = filter(between, var=="Temperature"), aes(x = 4.5, ymax = upper, 
-                                                                  ymin = lower, color = transect), width = 0.1)
-
-
-comb.humid.plot <- 
-    
-comb.humid.plot  + 
-    
-    geom_point(data = filter(between, var=="Humidity"), aes(x = 4.5, y = Estimate, color = transect)) + 
-    
-    geom_vline(xintercept = 4.25, lty = 2) + 
-    
-    geom_errorbar(data = filter(between, var=="Humidity"), aes(x = 4.5, ymax = upper, 
-                                                                  ymin = lower, color = transect), width = 0.1)
-
-
-comb.vwc.plot <- 
-    
-comb.vwc.plot  + 
-    
-    geom_point(data = filter(between, var=="VWC"), aes(x = 4.5, y = Estimate, color = transect)) + 
-    
-    geom_vline(xintercept = 4.25, lty = 2) + 
-    
-    geom_errorbar(data = filter(between, var=="VWC"), aes(x = 4.5, ymax = upper, 
-                                                                  ymin = lower, color = transect), width = 0.1)
-
-
-comb.par.plot <- 
-    
-comb.par.plot  + 
-    
-    geom_point(data = filter(between, var=="Par"), aes(x = 4.5, y = Estimate, color = transect)) + 
-    
-    geom_vline(xintercept = 4.25, lty = 2) + 
-    
-    geom_errorbar(data = filter(between, var=="Par"), aes(x = 4.5, ymax = upper, 
-                                                                  ymin = lower, color = transect), width = 0.1)
-
-
-plot_grid(comb.temp.plot + theme(axis.text.x = element_blank(), axis.title.x = element_blank(), legend.position="none"),  
+plot_grid(
+    comb.temp.plot + 
+        theme(axis.text.x = element_blank(), axis.title.x = element_blank(), 
+              legend.position="none"),  
+        legend,
           
-          legend,
+    comb.humid.plot + 
+        theme(axis.text.x = element_blank(), axis.title.x = element_blank(), 
+            legend.position="none"), 
+          NULL,
           
-          comb.humid.plot + theme(axis.text.x = element_blank(), axis.title.x = element_blank(), legend.position="none"), 
+    comb.vwc.plot + 
+        theme(axis.text.x = element_blank(), axis.title.x = element_blank(), 
+            legend.position="none"), 
           
           NULL,
           
-          comb.vwc.plot + theme(axis.text.x = element_blank(), axis.title.x = element_blank(), legend.position="none"), 
-          
-          NULL,
-          
-          comb.par.plot + theme(legend.position="none"), ncol = 2, rel_widths = c(1, 0.2, 1, 0.2, 1, 0.2))
+    comb.pfd.plot + 
+        theme(legend.position="none"), 
+    
+    ncol = 2, rel_widths = c(1, 0.2, 1, 0.2, 1, 0.2))
 
 
 
