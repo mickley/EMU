@@ -2,16 +2,18 @@
 
 ##### I²C Module for the BH1750FVI Digital Light Sensor #####
 
-
-~~ Datasheets ~~
-
-
-The following sources were of use for reference:
-
-
+See the Datasheet for more information:
+https://www.mouser.com/ds/2/348/bh1750fvi-e-186247.pdf
 
 ##### Public Function Reference #####
-* 
+* init(SDA, SCL, i2c_address, sensor_mode) - Initialize the sensor
+* getLux(callback_func) - Read a lux value. If a callback function is specified, 
+  run that function to receive the luxC value.
+* setMode(sensor_mode) - Sets the sensor mode: continuous or single sample, & resolution
+* setMeasurementTime(MT) - Sets the measurement time to adjust the range and resolution
+* on() - Turns the sensor on
+* off() - Turns the sensor off
+* reset() - Resets the lux value in the data register
 
 ##### Required Firmware Modules #####
 i2c, tmr
@@ -49,6 +51,12 @@ i2c, tmr
 - 12/20/2017 JGM - Version 1.1
     - Fixed bug that resulted in a crash if sensor not present
 
+- 9/24/2018 JGM - Version 1.2
+    - Fixed bug that resulted in max values when sensor was not present, 
+      gives a reading of false now.
+    - Now returns the raw sensor value as a 3rd parameter
+
+
 --]]
 
 
@@ -65,7 +73,7 @@ local M = {}
 -- Local variables
 local address, MTReg, resolution, delay, modeCode
 local i2c_id = 0
-local version = 1.1
+local version = 1.2
 
 
 -- ############### Private Functions ###############
@@ -93,13 +101,13 @@ end
 -- 
 local function read()
 
-	local bytes, raw, valid, lux
+	local test, bytes, raw, valid, lux
 
     -- Send an I²C start condition
     i2c.start(i2c_id)
 
     -- Setup I²C address in write mode
-    i2c.address(i2c_id, 0x23, i2c.RECEIVER)
+    test = i2c.address(i2c_id, 0x23, i2c.RECEIVER)
 
 	-- Receive two bytes from the sensor
 	bytes = i2c.read(i2c_id, 2)
@@ -111,16 +119,20 @@ local function read()
 	raw = string.byte(bytes, 1) * 256 + string.byte(bytes, 2)
 
     -- Check if the measurement is valid
-    if raw < 65535 then valid = true else valid = false end
+    --if raw < 65535 then valid = true else valid = false end
+    valid = raw < 65535 and true or false
+
+    
+    raw = test and raw or nil
 
 	-- According to datasheet, divide by 1.2 & multiply by resolution
 	-- Rescale to account for Measurement Time change
-	lux = raw / 1.2 * resolution * 69.0 / MTReg
+	lux = test and raw / 1.2 * resolution * 69.0 / MTReg or false
 
 	-- TODO: Check for errors
 
     -- Return the lux measurement and its validity
-	return lux, valid
+	return lux, valid, raw
 
 end
 
@@ -284,7 +296,7 @@ end
 
 function M.getLux(callback_func)
 
-	local lux, valid
+	local lux, valid, raw
 
 	-- Set the mode/initiate a conversion
 	write(modeCode)
@@ -297,19 +309,19 @@ function M.getLux(callback_func)
         tmr.create():alarm(delay, tmr.ALARM_SINGLE, function()
 
         	-- Get the lux value and its validity
-        	lux, valid = read()
+        	lux, valid, raw = read()
 
         	-- Run the callback function with the lux & validity as arguments
-            callback_func(math.floor(lux * 100 + 0.5) / 100, valid)
+            callback_func(lux and math.floor(lux * 100 + 0.5) / 100 or false, valid, raw)
     	end)
 
     else
 
     	-- Get the lux value and its validity
-    	lux, valid = read()
+    	lux, valid, raw = read()
 
     	-- Return the lux value and validity, since there is no callback function
-    	return math.floor(lux * 100 + 0.5) / 100, valid
+    	return lux and math.floor(lux * 100 + 0.5) / 100 or false, valid, raw
 
     end
 
