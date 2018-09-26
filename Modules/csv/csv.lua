@@ -22,6 +22,9 @@ file
     - Now uses object-oriented file functions
       Also checks to see if files were opened correctly, 
       preventing errors
+
+- 9/20/2018 JGM - Version 0.4
+    - Fixed bug when no header row was specified
     
 --]]
 
@@ -38,7 +41,7 @@ local M = {}
 -- ############### Local variables ###############
 
 local header
-local version = 0.3
+local version = 0.4
 
 -- ############### Private Functions ###############
 
@@ -53,17 +56,8 @@ function M.writeCSV(tbl, filename, separator)
     -- Check if the first argument is a table
     if type(tbl) == "table" then
 
-        --print(tbl.header)
-        --print(type(tbl.header))
-        --print(tbl.header == nil)
-        
-        -- Check if there's a header, and whether it's a table itself
-        if tbl.header == nil or type(tbl.header ~= "table") then 
-            --print("Err: No table header set")
-        end
-
     else
-        print("Err: need a table with a header field")
+        print("Err: need a table of data")
     end
 
     -- Check to see if filename is a string and arr is a table
@@ -84,11 +78,6 @@ function M.writeCSV(tbl, filename, separator)
         fhandle = file.open(filename, "a+")
         
     else
-
-        -- Join the header
-        header = table.concat(tbl.header, sep)
-
-        --print(header)
         
         -- Create the file
         fhandle = file.open(filename, "w")
@@ -96,8 +85,16 @@ function M.writeCSV(tbl, filename, separator)
         -- Check to see if the file opened successfully
         if fhandle then
 
-            -- Write the header row
-            fhandle:writeline(header)
+            -- Check if there's a header, and whether it's a table itself
+            if tbl.header ~= nil and type(tbl.header == "table") then 
+    
+                -- Join the header
+                header = table.concat(tbl.header, sep)
+    
+                -- Write the header row
+                fhandle:writeline(header)
+            end
+
         else
         
             -- Print error message
