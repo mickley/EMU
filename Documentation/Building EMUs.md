@@ -65,3 +65,8 @@ External wiring connections or pins cannot be coated with silicone conformal coa
 
 ## Temperature Sensor Shielding
 
+Temperature sensors should be shielded from the sun, and perhaps also from the ground to prevent elevated temperature reading. Ideally, shielding should be [fan-aspirated](https://www.apogeeinstruments.com/aspirated-radiation-shield/), to prevent air from being trapped near the sensor. Alternatively, naturally aspirated [gill shields](https://www.onsetcomp.com/products/mounting/rs3-b), provide accuracy to within 1-2 °C when there is no wind to create air movement (and higher accuracy in other conditions). Unfortunately, both of these options are prohibitively expensive relative to EMUs.
+
+Instead of buying a shield, we built one out of an inverted white plastic cup bottom, similar to [Cowles et al. 2016](https://doi.org/10.1111/gcb.13111). Subsequently, [Terando et al. 2017](http://doi.org/10.1002/ece3.3499) have done careful tests and concluded that this is not a good design and can even be worse than no shielding in some circumstances.  Instead, they recommend one built by [Holden et al. 2013](https://doi.org/10.1016/j.agrformet.2013.06.011) ([video instructions for construction](https://www.youtube.com/watch?v=LkVmJRsw5vs)) out of corrugated plastic material covered with foil tape. This shield provides similar shielding to naturally-aspirated gill shields. 
+
+Regardless of the shielding used, we recommend that researchers carefully consider their shielding design, and if it has not already been tested against a high quality shield and temperature sensor, we recommend that this be done.
