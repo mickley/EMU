@@ -34,6 +34,11 @@ bme280, i2c, node, tmr
     - Now uses firmware modules for bh1750 and ads1115
     - Added tests for ws2812 LED and ds18b20 soil temp
 
+- 9/26/2018 JGM - Version 1.4:
+    - Reverted to lua modules for bh1750 and ads1115
+    - Added checks for csv and logging lua modules
+    - Removed ws2812 and ds18b20 sections for publication
+
 --]]
 
 
@@ -45,9 +50,6 @@ sda = 1 -- GPIO4
 scl = 2 -- GPIO5
 
 
--- Define the onewire pin
-ow = 6
-
 -- ########## Setup Wifi ##########
 
 
@@ -55,69 +57,45 @@ ow = 6
 wifi.setmode(wifi.NULLMODE)
 
 
--- ########## Test LED ##########
+-- ########## Test lua Modules ##########
 
 
--- Setup the WS2812 bus
-ws2812.init(ws2812.MODE_SINGLE)
+-- Load the csv module, making sure it loads properly
+status, csv = pcall(require, "csv")
 
--- Turn on Red
-ws2812.write(string.char(0, 127, 0))
+if status then
 
--- Wait 500 ms
-tmr.create():alarm(500, tmr.ALARM_SINGLE, function()
+    -- Unload the module
+    csv = nil
+    package.loaded.csv = nil
 
-    -- Switch to Green
-    ws2812.write(string.char(127, 0, 0))
+    -- Print out the success message
+    print("--[[ CSV: PASS - Module loaded --]]")
 
-    -- Wait 500 ms
-    tmr.create():alarm(500, tmr.ALARM_SINGLE, function()
+else
 
-        -- Switch to Blue
-        ws2812.write(string.char(0, 0, 127))
-
-        -- Wait 500 ms
-        tmr.create():alarm(500, tmr.ALARM_SINGLE, function()
-
-            -- Turn off
-            ws2812.write(string.char(0, 0, 0))
-
-        end)
-    end)
-
-end)
-
--- ########## Test Soil Moisture Sensor ##########
+    -- Didn't find the lua module
+    print("'CSV: FAIL - Lua Module not present'")
+end
 
 
--- Setup the Onewire bus
-ds18b20.setup(ow)
+-- Load the logging module, making sure it loads properly
+status, logging = pcall(require, "logging")
 
--- Check for DS18b20 sensors and read from them
-ds18b20.read(function(_, rom, _, temperature)
-    device = string.format("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X",
-        string.match(rom,"(%d+):(%d+):(%d+):(%d+):(%d+):(%d+):(%d+):(%d+)"))
-    tempS = temperature
-end, {})
+if status then
 
+    -- Unload the module
+    logging = nil
+    package.loaded.logging = nil
 
+    -- Print out the success message
+    print("--[[ Logging: PASS - Module loaded --]]")
 
--- Create a timer to check whether we got a readout from the DS18b20 sensor
-tmr.create():alarm(950, tmr.ALARM_SINGLE, function()
+else
 
-    if device == nil then
-
-        -- Print status
-        print("'Soil Temp: FAIL - Sensor not detected'")
-        
-    else
-
-        -- Print out the success message
-        print("--[[ Soil Temp: PASS - " .. device .. " | " .. tempS .. " --]]")
-        
-    end
-
-end)
+    -- Didn't find the lua module
+    print("'Logging: FAIL - Lua Module not present'")
+end
 
 
 -- ########## Test BME280 Temp/Humid/Pressure Sensor ##########
@@ -127,15 +105,15 @@ end)
 -- Settings:
 --    x16 oversampling for temp and humidity
 --    x1 oversampling for presssure (faster measurements)
---    normal mode
---    20ms between samples
---    IIR Filter = 2
+--    forced mode
+--    125 ms between samples
+--    IIR Filter = 0
 
 -- Initialize I2C bus
 i2c.setup(0, sda, scl, i2c.SLOW) 
 
 -- Initialize BME280 temp/humidity/pressure sensor.  
-bme = bme280.setup(5, 1, 5, 3, 2, 0)
+bme = bme280.setup(5, 1, 5, 1, 2, 0)
 
 -- Wait 1 second before reading
 tmr.create():alarm(1000, tmr.ALARM_SINGLE, function()    
@@ -161,7 +139,7 @@ tmr.create():alarm(1000, tmr.ALARM_SINGLE, function()
             if temp == nil or pressure == nil or humid == nil then
         
                 -- At least one measurement was invalid
-                print("'BME280: FAIL - Sensor detected, some measurements invalid'")
+                print("'BME280: FAIL - Sensor detected, some measurements invalid:' ", temp, pressure, humidity)
         
             else
         
@@ -243,43 +221,63 @@ end)
 -- ########## Test BH1750FVI Light Sensor ##########
 
 
--- Initialize BH1750 sensor #1: one-shot mode, maximum range, 0x23 address
-bh = bh1750.setup(0, 0x23, bh1750.ONE_TIME_HIGH_RES_MODE, 31)
-
 -- Wait 3 seconds
 tmr.create():alarm(3000, tmr.ALARM_SINGLE, function()
 
-    -- Log message, but don't turn off
-    if bh == nil then
-        
-        -- Didn't find the sensor
-        print("'BH1750: FAIL - No Sensor Found'")
 
-    else
-        -- Get the lux value
-        lx = bh1750.read()
-    
-        -- Check measurement
-        if lx == nil or lx == 54612500 then
-    
-            print("'BH1750: FAIL - Bad Lux Measurement'")
-            
+    -- Load the BH1750 sensor module
+    status, bh1750 = pcall(require, "bh1750")   
+
+    -- Check to see if the module loaded successfully
+    if status then
+        
+        -- Initialize the bh1750 sensor
+        test = bh1750.init(sda, scl, 0x23, "OneTime_H")
+        
+        -- Check to see if we found the bh1750 sensor
+        if test then
+
+            -- Set the measurement time to the minimum: 121,556 lux
+            bh1750.setMeasurementTime(31)
+
+            -- Start getting a lux measurement
+            bh1750.getLux(function(lux, valid, raw)
+
+                -- Check lux measurement
+                if not lux then
+
+                    -- Didn't find the sensor after initialized
+                    print("'BH1750: FAIL - No Sensor Found'")
+
+                elseif not valid then
+
+                    -- Returned a lux measurement, but out of range
+                    print("'BH1750: FAIL - Lux measurement out of range'")
+
+                else
+
+                    -- Print out the success message
+                    print("--[[ BH1750: PASS - " .. lux .. " lux --]]")
+
+                end
+
+            end)
+
         else
 
-            -- Check for light out of range
-            if lx == 121556854 then
-            
-                print("'BH1750: FAIL - Lux out of Range'")
+            -- Didn't find the sensor
+            print("'BH1750: FAIL - No Sensor Found'")
 
-            else
+        end
 
-                -- Round lux to two decimals
-                lux = math.floor(lx/10 + 0.5)/100
-                print("--[[ BH1750: PASS - " .. lux .. " lux --]]")
+        -- Done with bh1750, so we can unload it 
+        bh1750 = nil
+        package.loaded.bh1750 = nil
 
-            end
-        
-        end -- End of BH1750 measurement check
+    else
+
+        -- Didn't find the lua module
+        print("'BH1750: FAIL - Lua Module not present'")
 
     end
 
@@ -289,58 +287,67 @@ end)
 -- ########## Test ADS1115/Soil Moisture Sensor ##########
 
 
--- Setup the ADS1115 using the default address (0x48)
-ads = ads1115.setup(ads1115.ADDR_GND)
-
--- Configure with 4.096v range, 128SPS, and measuring channel 0 in single shot mode
-ads1115.setting(ads1115.GAIN_4_096V, ads1115.DR_128SPS, ads1115.SINGLE_0, ads1115.SINGLE_SHOT)
-
 -- Wait 4 seconds
 tmr.create():alarm(4000, tmr.ALARM_SINGLE, function()
 
-    -- Log message, but don't turn off
-    if ads == nil then
+    -- Load ADS1115 module
+    status, ads1115 = pcall(require, "ads1115")
+
+    -- Load the BH1750 sensor module
+    status, bh1750 = pcall(require, "bh1750")   
+
+    -- Check to see if the module loaded successfully
+    if status then
         
-        -- Didn't find the sensor
-        print("'ADS1115: FAIL - No Sensor Found'")
+        -- Initialize ADS1115 module, sets up configuration
+        test = ads1115.init(sda, scl, 0x48)
+        
+        -- Check to see if we found the ads1115
+        if test then
+
+            -- Maximum voltage to measure is 4.096 volts
+            ads1115.setPGA(4.096)
+        
+            -- Read channel A0 using callback function
+            ads1115.readADC(0, function(soil)
+
+
+                -- Check soil measurement: Should be 24000-27000, ideally 26000s
+                if soil < 24000 then
+
+                    -- Low measurement: module not plugged in or connection problems
+                    print("'ADS1115: Ch0 FAIL - Measurement low: " .. soil .. "'")
+
+                elseif soil > 27000 then
+
+                    -- High measurement, wiring problems too high voltage to soil module
+                    print("'ADS1115: Ch0 FAIL - Measurement high: " .. soil .. "'")
+
+                else
+
+                    -- Print out the success message
+                    print("--[[ ADS1115 Ch0: PASS - " .. soil .. " --]]")
+
+                end -- End of ADS1115 Ch0 measurement check
+
+            end)
+
+        else
+
+            -- Didn't find the sensor
+            print("'ADS1115: FAIL - No Sensor Found'")
+
+        end
+
+        -- Done with bh1750, so we can unload it 
+        bh1750 = nil
+        package.loaded.bh1750 = nil
 
     else
 
-        -- Start a measurement from the ADS1115
-        ads1115.startread(function(volt, volt_dec, adc, sign) 
+        -- Didn't find the lua module
+        print("'ADS1115: FAIL - Lua Module not present'")
 
-            -- Check measurement
-            if adc == nil then
-                print("'ADS1115: Ch0 FAIL - Bad Soil Measurement'")
-            elseif adc < 24000 then
-                print("'ADS1115: Ch0 FAIL - Measurement low: " .. adc .. "'")
-            elseif adc > 28000 then
-                print("'ADS1115: Ch0 FAIL - Measurement high: " .. adc .. "'")
-            else
-                print("--[[ ADS1115 Ch0: PASS - " .. adc .. " --]]")
-            end -- End of ADS1115 Ch0 measurement check
-
-
-            -- Configure with 4.096v range, 128SPS, and measuring channel 1 in single shot mode
-            ads1115.setting(ads1115.GAIN_4_096V, ads1115.DR_128SPS, ads1115.SINGLE_1, ads1115.SINGLE_SHOT)
-
-            -- Start a measurement from the ADS1115
-            ads1115.startread(function(volt, volt_dec, adc, sign) 
-
-                -- Check measurement
-                if adc == nil then
-                    print("'ADS1115: Ch1 FAIL - Bad Soil Measurement'")
-                elseif adc < 24000 then
-                    print("'ADS1115: Ch1 FAIL - Measurement low: " .. adc .. "'")
-                elseif adc > 28000 then
-                    print("'ADS1115: Ch1 FAIL - Measurement high: " .. adc .. "'")
-                else
-                    print("--[[ ADS1115 Ch1: PASS - " .. adc .. " --]]")
-                end -- End of ADS1115 Ch1 measurement check
-
-            end) -- End of ADS1115 Ch1 Readout 
-
-        end) -- End of ADS1115 Ch0 Readout
     end
 
 end)

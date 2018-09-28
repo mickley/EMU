@@ -54,8 +54,7 @@ check:alarm(1000, tmr.ALARM_AUTO, function()
     end
 
     -- Initialize the BME sensor and check if it's present
-    status = bme280.setup()
-    --status = bme280.init(sda, scl)
+    status = bme280.setup(5, 1, 5, 1, 2, 0)
 
     -- BME sensor is present
     if status == 2 then
@@ -73,7 +72,6 @@ check:alarm(1000, tmr.ALARM_AUTO, function()
 
     -- BMP sensor is present instead of BME
     elseif status == 1 then
-
 
         -- Print status
         print ("BMP280 present -- Wrong sensor chip")
