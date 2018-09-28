@@ -1,15 +1,15 @@
 --[[ 
 
+Main EMU field data collection script
 This script reads the BME280, BH1750, and Soil Moisture sensors
-It saves the data to CSV.
-Built specifically for field usage
+It saves the data to CSV
 
 Module requirements:
 ads1115, bh1750, csv, ds3231, logging
 
-
-Firmware Module requirements:
-bit, bme280, file, gpio, i2c, node, rtctime, sntp, tmr, u8g, wifi
+Firmware Module requirements (including init.lua)
+adc, bme280, file, gpio, http, i2c, net, node, 
+rtctime, tmr, uart, wifi
 
 ##### Version History #####
 - 10/13/2016 JGM - Version 0.1:
@@ -28,122 +28,77 @@ bit, bme280, file, gpio, i2c, node, rtctime, sntp, tmr, u8g, wifi
       and prevent panics. Problems with modules loading or not 
       connected should get caught.
 
-- 9/12/2018
-    - Complete rewrite
+- 4/3/2017   JGM - Version 2.0:
+    - Fiddled with BME280 parameters to minimize self-heating
+    - Added code to send data via Coap
+    - Now saves a unix timestamp instead of formatted date to csv
+
+- 4/3/2017   JGM - Version 2.1:
+    - Changed Coap code to send data when D7 is connected to Gnd
+      This minimizes the "on" time a bit more, and is more controllable.
+
+- 4/12/2017  JGM - Version 2.2:
+    - Improved Coap code.  Now sends slower and allows more tries
+    - Also doesn't give up if the server is receiving from another 
+
+- 4/13/2017  JGM - Version 2.3:
+    - Now runs startup() and main() functions with pcall and turns off
+      or sleeps if something fails.
+
+- 4/14/2017  JGM - Version 2.4:
+    - Coap improvements
+
+- 5/10/2017  JGM - Version 2.5:
+    - Removed Coap code
+    - Added a second soil moisture sensor
+    - Logs text timestamp instead of unix timestamp
+
+- 4/22/2018  JGM - Version 3.0:
+    - Full rewrite
+    - Now uses firmware modules for BH1750, ADS1115, and DS18B20
+
+- 5/14/2018  JGM - Version 3.1: 
+    - Added code to support WS2812 RGB LED with different colors for error codes
+
+- 9/28/2018  JGM - Version 3.2:
+    - Adapted for publication
+    - Removed code firmware modules for BH1750, ADS1115
+    - Removed support for soil temp and WS2812 error LED
 
 --]]
 
--- ########## Setup Variables ##########
 
 -- Keep all functions local to save memory
-local round, digs, display, timestamp, main, startup
+local startup, main, off
 
--- Use local variables to save memory
--- These variables are still available to functions, eg startup() & main()
-local sda, scl, soilPin, soilDelay, bme, log, disp,
-    lux, tempC, humid, kPa, soil, timestr, log, disp, disp_addr
+local sda, scl, bme, lux, tempC, humid, soil, volts, data
 
--- Set the SDA and SCL pins to use for I?C communication
-sda = 1 -- GPIO4
-scl = 2 -- GPIO5
 
--- Set the pin to turn on the soil sensor
-soilPin = 7
+-- Set the SDA and SCL pins
+sda = 1 -- GPIO5
+scl = 2 -- GPIO4
 
--- Set the delay before using the soil sensor
-soilDelay = 500
-
---Set the display's I2C address
-disp_addr = 0x3c
+-- Get the name to use on files.  This is set as the emu_name in config.lua
+emu_name = emu_name ~= nil and emu_name or "NoName"
 
 -- Make sure interval is set correctly, and set to 1 minute otherwise
-interval = interval ~= nil and interval or 1
+-- For this script, intervals of more than an hour are not supported
+interval = interval ~= nil and interval <= 60 and interval or 1
 
 -- Make sure timezone is set and default to UTC-5
 timezone = timezone ~= nil and timezone or -5
 
--- Make sure log_level is set and default to normal
+-- Make sure the logging level is set and default to 3: Normal
 log_level = log_level ~= nil and log_level or 3
-
-
--- ########## Ancillary Functions ##########
-
-
--- Function to round floating point numbers
-function round(number, digits)
-    local mult = 10^(digits or 0)
-    return math.floor(number * mult + 0.5) / mult
-end
-
-
--- Function to display # of digits for date/time
-function digs(number, digits)
-    return string.format("%0" .. (digits or 0) .. "d", number)
-end
-
-
--- Function to update the display
--- All the stuff to put on the display goes inside the repeat .. until loop
-function display()
-
-    -- Start at the first display page, and draw until the last page is reached
-    disp:firstPage()
-    repeat
-    
-        -- Display all our stuff
-        disp:drawStr( 5, 10, "Soil Moist.: " .. soil)
-        disp:drawStr( 5, 20, "Temp: " .. tempC)
-
-        -- Make sure we have humidity
-        if bme == 2 then disp:drawStr( 5, 30, "Humid: " .. humid) end
-        disp:drawStr( 5, 40, "Light: " .. lux)
-        disp:drawStr( 5, 50, "Pressure: " .. kPa)
-        disp:drawStr( 5, 60, timestr)
-        
-    until disp:nextPage() == false      
-  
-end
-
-
--- Function to get a Unix timestamp, and if specified, sync time with rtctime module
-function timestamp(year, month, day, hour, minute, second, sync)
-
-    local seconds, leapdays
-    
-    -- Calculate leap days
-    leapdays = math.floor((year + 28) / 4 + 1)
-
-    -- Determine if this is a leap year, and account for whether the leap day has occurred
-    if (year - 1972) % 4 == 0  and month <= 2 then leapdays = leapdays - 1 end
-
-    -- Days already elapsed in previous month for each month of the year.  
-    local months = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334}
-
-    -- Check for errors from an unconnected or unconfigured DS3231
-    if month == nil or month == 165 then
-        seconds = 0
-    else
-        -- Calculate seconds since Unix Epoch = Unix Timestamp
-        seconds = (365 * 86400 * (year + 30)) + (months[month] * 86400) + 
-            ((day + leapdays - 1) * 86400) + 
-            (hour * 3600) + (minute * 60) + second
-    end
-
-    -- Sync with the RTC time module if sync is true
-    if sync then rtctime.set(seconds) end
-
-    -- Return the timestamp
-    return seconds
-end
 
 
 -- ########## Startup Routine ##########
 
 
-function startup()
+local function startup()
 
     -- Local variables that aren't needed outside of startup()
-    local status, second, minute, hour, date, month, year, time
+    local status, minute, hour
 
 
     -- ########## Initialize the logging module  ##########
@@ -152,307 +107,491 @@ function startup()
     -- Load the logging module
     status, log = pcall(require, "logging")
 
-    -- Log an error and exit if the module didn't load
-    if not status then print("Error: logging module failed to load. Exiting!"); return end
-    
-    -- Specify a filename and a logging level
-    log.init("logfile.txt", log_level)
-    
+    -- Log an error and sleep for the programmed interval if loading failed
+    if not status then 
+        print("Loading logging failed.")
+
+         -- Go to sleep for the interval
+        node.dsleep(interval * 60 * 1000000, 2)
+        return
+    end     
+         
+    -- Specify a filename, logging only warnings and errors
+    log.init(emu_name .. "-logfile.txt", timezone, log_level)
+
     -- Log the start
-    log.log("Starting up ...", 3)
+    log.log("Starting up...", 3)
 
-
+    
     -- ########## Get the time and set a wake-up alarm ##########
-
-
+ 
+    
     -- Load the ds3231 module, making sure it loads properly
     status, ds3231 = pcall(require, "ds3231")
 
-    -- Log an error and exit if the module didn't load
-    if not status then log.log("DS3231 module failed to load. Exiting!", 1); return end
+    -- Log an error and sleep for the programmed interval if loading failed
+    if not status then 
+
+        -- Log an error message
+        log.log("Loading ds3231 failed, sleeping", 1)
+
+        -- Go to sleep for the interval
+        node.dsleep(interval * 60 * 1000000, 2) 
+        return
+    end
     
     -- Initialize the DS3231 real time clock
-    ds3231.init(sda, scl)
+    status = ds3231.init(sda, scl, 0x68, timezone)
+
+    -- Check to see if the DS3231 clock was detected
+    if not status then
+
+        -- Log an error message
+        log.log("No DS3231 clock found", 1)
+
+        -- Go to sleep for the interval
+        node.dsleep(interval * 60 * 1000000, 2) 
+        return
+    end
+
+    -- Get the current minute, hour, and year
+    _, minute, hour, _, _, _, year = ds3231.getTime("raw")
+
+    -- Return the formatted date/time (In R's native format) and sync with rtctime module
+    timestamp = ds3231.getTime("%R", true)
+
+    -- Check if we got a valid time and log an error and sleep for the programmed interval if not
+    if timestamp == nil then 
+
+        -- Go to sleep for the interval
+        node.dsleep(interval * 60 * 1000000, 2)
+        return
+    end
+
+    -- Check to make sure the time is set correctly (year 2000 if unset)
+    if  year == 2000 then
+        log.log("Clock time not set", 2)
+        Err_time = true
+    end
+
+    -- Check if the interval is an hour or less, and a factor of 60
+    if 60 % interval == 0 and interval <= 60 then
+
+        -- Calculate the minute to wake up and log again
+        -- Interval should be a factor of 60:
+        nextlog = (math.floor(minute / interval) + 1) * interval % 60
+
+    else 
+
+        -- Just log at the next appropriate time
+        nextlog = (minute + interval) % 60
+    end
     
-    -- Get date and time (don't need to get day of week, so skip that)
-    second, minute, hour, _, date, month, year = ds3231.getTime()
-    
-    -- Make a Unix timestamp and sync with the rtctime module (needed for logging)
-    time = timestamp(year, month, date, hour, minute, second, true)
-    
-    -- Check if we got a valid time and log a warning if not.  
-    if time == 0 then log.log("DS3231 module failed to get time", 2) end
-    
-    -- Creat a formatted date/time string
-    timestr = month .. "/" .. digs(date, 2) .. "/" .. digs(year, 2) .. 
-        " " .. digs(hour, 2) .. ":" .. digs(minute, 2) .. ":" .. 
-        digs(second, 2) .. " UTC" .. timezone
-    
-    -- Set the next alarm to wake up the ESP at
-    -- This will wake up the ESP after the interval specified, on the minute
-    ds3231.setAlarm(1, ds3231.MINUTE, 0, minute + interval)
+    -- Calculate the time that the next log will happen & format it
+    nextlogtime = ds3231.format("%T", 0, nextlog, 
+        nextlog < minute and (hour + 1) % 24 or hour, 1, 1, 1, 1, 1)
 
     -- Unload the DS3231 real time clock module
     ds3231 = nil
     package.loaded.ds3231 = nil
 
+    -- Garbage collect RAM after unloading ds3231
+    collectgarbage()
+    
 
-    -- ########## Initialize soil moisture pin ##########
-    
-    
-    -- Set the soil pin to output mode so it can send electricity
-    gpio.mode(soilPin, gpio.OUTPUT)
-    
-    -- Set the soil pin to Low (Off)
-    gpio.write(soilPin, gpio.LOW)
-
-    
     -- ########## Initialize Temp/Humidity sensor ##########
+
+
+    -- Initialize I2C bus
+    i2c.setup(0, sda, scl, i2c.SLOW) 
     
-    
-    -- Initialize BME280 temp/humidity/pressure sensor in sleep mode (power efficiency)
-    bme = bme280.init(sda, scl, nil, nil, nil, 0)
-    
-    -- Log message
-    if bme == nil then
-        log.log("No BME/BMP280 sensor found. Exiting!", 1)
-        return
-    elseif bme == 2 then
-        log.log("BME280 sensor found", 3)
+    -- Initialize BME280 temp/humidity/pressure sensor
+    -- Settings:
+        -- x16 oversampling for temp and humidity
+        -- x1 oversampling for presssure (faster measurements)
+        -- forced mode
+        -- 125 ms between samples
+        -- IIR Filter = 0
+    bme = bme280.setup(5, 1, 5, 1, 2, 0)
+
+    -- Log a message on whether the sensor was found
+    if bme == nil or bme == 1 then
+        log.log("No BME280 sensor found", 1)
     else
-        log.log("BMP280 sensor found", 3)
+        log.log("found BME280", 4)
     end
 
 
-    -- ########## Initialize the display ##########
-    
-    
-    -- Initialize I2C communication with the display
-    i2c.setup(0, sda, scl, i2c.SLOW)
-    
-    -- Start the display driver for this particular display
-    disp = u8g.ssd1306_128x64_i2c(disp_addr)
-    
-    -- Set the display font to use
-    -- Options: font_5x8, font_6x10, font_7x13, font_9x15_78_79, font_9x15, font_chikita
-    disp:setFont(u8g.font_6x10)
-
-
     -- ########## Run the main code to measure ##########
-
+    
 
     -- Finished starting up.  
     -- Exit the function first to free up memory by waiting to run main()
-    tmr.create():alarm(10, tmr.ALARM_SINGLE, function()
+    tmr.create():alarm(50, tmr.ALARM_SINGLE, function()
     
         -- Run garbage collection to get back memory
         collectgarbage()
-
+        
         -- run the main code to take a measurement
-        main()
-    end)
+        status = pcall(main)
 
-end
+        -- Check if there was an error while running main
+        if not status then
+            log.log("main function failed", 1)
+
+            -- Turn off the EMU via clock alarm until the next logging time
+            off()
+            return
+        end
+
+    end) -- End of timer to run main code file
+
+end -- End of startup() function
 
 
--- ########## Main Code ##########
+-- ########## Main Code: Measure and Process ##########
 
 
 -- The main() function measures all our sensors and writes to display & csv
 function main()
 
     -- Local variables that aren't needed outside of main()
-    local status, pressure, temp, humidity, data
+    local status, temp, humidity
 
-    -- Log message
-    log.log("Starting a measurement ...", 3)
 
-    -- Turn on soil moisture sensors
-    gpio.write(soilPin, gpio.HIGH)
+    -- ########## Read Temp & Humidity from BME280  ##########
 
-    -- Load the BH1750 light module
-    status, bh1750 = pcall(require, "bh1750")
-
-    -- Log an error if the module fails to load
-    if not status then log.log("BH1750 module did not load", 1); return end
-
-    -- Initialize bh1750, high resolution, one time (goes to sleep afterwards)
-    bh1750.init(sda, scl, 0x23, "OneTime_H")
-
-    -- Set the measurement time to the minimum: 117,000 lux
-    bh1750.setMeasurementTime(32)
-
-    -- Start getting a lux measurement
-    bh1750.getLux(function(lx)
-
-        -- Log message
-        if lx ~= nil then
-            log.log("Got lux measurement: " .. lx, 3)
-        else
-            log.log("Error measuring lux. Exiting!", 1)
-            return
-        end
-
-        -- Save the value
-        lux = round(lx, 2)
-
-        -- Done with bh1750, so we can unload it 
-        bh1750 = nil
-        package.loaded.bh1750 = nil
-
-    end)
+    -- Check if a bme280 sensor was found
+    if bme then
     
-
-    -- Take readings from BME280 in forced mode, and then go back to sleep
-    -- The callback function runs after 113ms by default (or set first arg to # of ms)
-    -- This gives time for the sensor to take the readings
-    bme280.startreadout(0, function ()
-
-        -- Get pressure & temperature from BME280
-        pressure, temp = bme280.baro() -- hectopascals * 1000, tempC * 100
-
-        -- Get humidity from BME280, if BMP280 don't bother
-        if bme == 2 then humidity = bme280.humi() end -- RH * 1000
-
-        -- Log message
-        if pressure ~= nil and temp ~= nil and (humidity ~= nil or bme == 1) then
-            log.log("Got BMP/BME measurements successfully", 3)
-        else
-            log.log("Error getting measurements from BMP/BME. Exiting!", 1)
-            return
-        end
-        
-        -- Unit conversions
-        tempC = temp / 100 -- To Celcius
-
-        -- Check to see if humidity is defined first
-        if humidity ~= nil then humid = humidity / 1000 end -- To relative humidity percentage
-        kPa = pressure / 10000 -- hectopascals * 1000
-
-        --tempF = tempC * 9 / 5 + 32 -- To Fahrenheit
-        --inHG = kPa * 0.295301 -- To inches of mercury
-        
-        -- Barometric correction for inHG by temperature
-        -- From http://www.csgnetwork.com/barcorrecttcalc.html
-        --correction = inHG * ((tempF - 28.630) / (1.1123 * tempF + 10978))
-        --inHG = round(inHG + correction, 3)
-
-        
-
-    end)
-
-    -- Log message
-    log.log("Soil moisture sensor equilibrating", 3)
-
-
-    -- Set a timer to wait until the soil sensors equilibrate
-    tmr.create():alarm(soilDelay, tmr.ALARM_SINGLE, function()
-
-        -- Log message
-        log.log("Soil moisture sensor ready", 3)
-
-        -- Load ADS1115 module
-        status, ads1115 = pcall(require, "ads1115")
+        -- Start a measurement from the BME280 #1 sensor and read out after 150ms
+        bme280.startreadout(150, function()
     
-        -- Log an error if the module fails to load
-        if not status then log.log("ADS1115 module did not load.  Exiting!", 1); return end
-        
-        -- Initialize ADS1115 module, sets up configuration
-        ads1115.init(sda, scl)
+            -- Get temperature and humidity from the BME280
+            temp, _, humidity = bme280.read()
     
-        -- Maximum voltage to measure is 4.096 volts
-        ads1115.setPGA(4.096)
+            -- Check if temperature was set
+            if temp == nil then
     
-        -- Read channel A0 using callback function
-        ads1115.readADC(0, function(return_val)
-    
-            -- Get the soil moisture value from the callback
-            soil = return_val
+                -- Log a warning
+                log.log("BME280 did not return temperature measurement", 2)
+            
+            end
 
-            -- Log message
-            if soil ~= nil  then
-                log.log("Got soil moisture successfully: " .. soil, 3)
-            else
-                log.log("Error getting soil moisture from ADS1115.  Exiting!", 1)
-                return
+            -- Check if humidity was set
+            if humidity == nil then
+    
+                -- Log a warning
+                log.log("BME280 did not return humidity measurement", 2)
+            
             end
     
-            -- Done with ads1115, so we can unload it 
-            ads1115 = nil
-            package.loaded.ads1115 = nil
-
-            -- Turn off soil moisture sensor
-            gpio.write(soilPin, gpio.LOW)
-
-            -- Print out the information
-            log.log("Light Level: " .. lux .. " lux", 3)
-            log.log("Temperature: " .. tempC .. " deg C", 3)
-            if bme == 2 then log.log("Humidity: " .. humid .. "%", 3) end
-            log.log("Soil Moisture: " .. soil, 3)
-            log.log("Pressure: " .. kPa .. " kPa", 3)
-            log.log("Time: " .. timestr, 3)
-                        
-            -- Display our measurements on the display
-            display()
+            -- Unit conversions
+            -- To Celsius (2 decimal places)
+            tempC = temp ~= nil and temp / 100 or -100
+            
+            -- To relative humidity percentage
+            humid = humidity ~= nil and humidity / 1000 or -100
     
-            -- Load the CSV module
-            status, csv = pcall(require, "csv")
+        end) -- End of BME280 Readout
+
+    -- No bme280 sensor found
+    else
+
+        -- Set temperature and humidity to -100 (no data)
+        tempC, humid = -100, -100
+
+    end -- End of bme280 sensor check
+    
+
+    -- ########## Read Lux from the BH1750FVI sensor ##########
+    
+    
+    -- Wait 200 ms
+    tmr.create():alarm(200, tmr.ALARM_SINGLE, function()
+
+        -- Set lux to -100 in case we never get a value
+        lux = -100
+    
+        -- Load the BH1750 sensor module
+        status, bh1750 = pcall(require, "bh1750")   
+
+        -- Check to see if the module loaded successfully
+        if status then
+
+            -- Initialize the bh1750 sensor
+            test = bh1750.init(sda, scl, 0x23, "OneTime_H")
+
+            -- Test whether the sensor was detected
+            if test then
+
+                -- Log a success message
+                log.log("bh1750 sensor found", 4)
+
+                -- Set the measurement time for maximum range: 121,556 lux
+                bh1750.setMeasurementTime(31)
+
+                -- Start getting a lux measurement
+                bh1750.getLux(function(lx, valid)
+
+                    -- Check value returned
+                    if not lx then
+
+                        -- Log a warning
+                        log.log("No measurement for BH1750", 2)
+
+                    elseif not valid then
+
+                        -- Log a warning that even though lux was returned, the value is questionable
+                        log.log("BH1750 lux measurement out of range", 2)
+
+                        -- Save the value
+                        lux = lx
+
+                    else
+
+                        -- Save the value
+                        lux = lx
+
+                    end
+
+                    -- Done with bh1750, so we can unload it 
+                    bh1750 = nil
+                    package.loaded.bh1750 = nil
+
+                end) -- End of getLux callback
+
+            -- Sensor not detected
+            else
+
+                -- Log a warning if the module fails to load
+                log.log("No bh1750 sensor found", 2)
+
+                -- Done with bh1750, so we can unload it 
+                bh1750 = nil
+                package.loaded.bh1750 = nil
+
+            end -- End of bh1750 sensor check
+
+        -- Module didn't load
+        else
+            -- Log a warning if the module fails to load
+            log.log("Loading bh1750 failed", 2)
+
+        end -- End of bh1750 module load check
+
+    end) -- End of bh1750 timer
+
+
+    -- ########## Read Soil Moisture from ADS1115 Ch0 ##########
+
+
+    -- Wait 500 ms
+    tmr.create():alarm(500, tmr.ALARM_SINGLE, function()
+
+        -- Set soil to -100 in case we never get a value
+        soil = -100
+
+        -- Load the ads1115 module
+        status, ads1115 = pcall(require, "ads1115")   
+
+        -- Check to see if the module loaded successfully
+        if status then
+
+            -- Initialize ADS1115 module, sets up configuration
+            test = ads1115.init(sda, scl, 0x48)
+
+            -- Test whether the sensor was detected
+            if test then
+
+                -- Log a success message
+                log.log("ads1115 sensor found", 4)
+
+                -- Maximum voltage to measure is 4.096 volts
+                ads1115.setPGA(4.096)
+
+                -- Read channel A0 using callback function
+                ads1115.readADC(0, function(val)
+
+                    -- Check value returned
+                    if val ~= nil then
+
+                        -- Save the value
+                        soil = val
+
+                    end
+
+                end) -- End of readADC callback
+
+            -- Sensor not detected
+            else
+
+                -- Log a warning if the module fails to load
+                log.log("No ads1115 sensor found", 2)
+
+            end -- End of bh1750 sensor check
+
+        -- Module didn't load
+        else
+            -- Log a warning if the module fails to load
+            log.log("Loading ads1115 failed", 2)
+
+
+        end -- End of ads1115 module load check
+
+    end) -- End of ads1115 timer
+
+
+    -- Set a timer to wait for everything to be measured
+    tmr.create():alarm(1000, tmr.ALARM_SINGLE, function()
+
+
+        -- ########## Read Battery Voltage ##########
+
+
+        -- Read the voltage before turning everything off.  
+        -- Max 6.5 volts with 330k resistor on Wemos D1 mini
+        volts = math.floor((adc.read(0) / 1024 * 6.5) * 1000 + 0.5) / 1000
+
+
+        -- ########## Check that measurements were successful ##########
+
+
+        -- Final data check
+        -- If any of our values are not set then exit without saving the data
+        if tempC == nil or humid == nil or lux == nil or soil == nil or volts == nil then
+
+            -- Log an error message
+            log.log("Some measurements nil, not logging", 1)
+            
+            -- Turn off the EMU via clock alarm until the next logging time
+            off()
+            return
+        end
+
+        -- Print out the information
+        -- Log the time
+        log.log("Time: " .. timestamp, 3)
+
+        -- Log the results
+        log.log( tempC .. " deg C | " .. humid .. " %RH | " .. lux .. " lux", 3)    
+        log.log("Soil: " .. soil .. "  | Batt: " .. volts .. " V", 3)
+
+        -- Make a new data table to store stuff in
+        data = {}
+
+        -- Set the CSV header
+        data["header"] = {"Timestamp", "Temp", "Humid", "Lux", "Soil", "Volts"}
+                    
+        -- Set the CSV data
+        data[1] = {timestamp, tempC, humid, lux, soil, volts}
+            
+        -- Load the CSV module
+        status, csv = pcall(require, "csv")
+        
+        -- Check to see if the module loaded successfully
+        if not status then 
 
             -- Log a warning if the module fails to load
-            if not status then 
-                log.log("CSV module did not load", 2)
-
-            -- If the module loaded, write to CSV
-            else
+            log.log("Loading csv failed", 2)
             
-                -- Make a new data table to store stuff in
-                data = {}
-        
-                -- Set the CSV header
-                -- Include humidity data if it's a BME280
-                if bme == 2 then
-                    data["header"] = {"Soil_Moisture", "Temperature", "Light", "Pressure", "Humidity", "Time"}
-        
-                    -- Set the CSV data
-                    data[1] = {soil, tempC, lux, kPa, humid, timestr}
-                else
-                   -- Exclude humidity data for BMP280
-                   data["header"] = {"Soil_Moisture", "Temperature", "Light", "Pressure", "Time"}
-        
-                    -- Set the CSV data
-                    data[1] = {soil, tempC, lux, kPa, timestr}
-                end
-             
-                -- Write the CSV
-                csv.writeCSV(data, "data.csv")
+        -- If the module loaded, write to CSV
+        else
+         
+            -- Write the CSV
+            csv.writeCSV(data, emu_name .. "-data.csv")
+
+            -- Unload the CSV module
+            csv = nil
+            package.loaded.csv = nil
+
+        end
+
+        -- Turn off
+        off()
+
+    end) -- End of measurement wait timer
+
+end -- End of main() function
+
+
+-- ########## SFinishing Routine ##########
+
+
+-- Function to turn off the ESP by reloading the alarm on the DS3231
+function off()
+
+    -- Garbage collect RAM 
+    collectgarbage()
+
+    -- Give some time for everything to complete and then turn off
+    tmr.create():alarm(10, tmr.ALARM_SINGLE, function()
     
-                -- Unload the CSV module
-                csv = nil
-                package.loaded.csv = nil
+        -- Load the ds3231 module, making sure it loads properly
+        status, ds3231 = pcall(require, "ds3231")
     
-                -- Delete the data table
-                data = nil
+        -- Log an error and sleep for the programmed interval if loading failed
+        if not status then 
 
-            end
+            -- Log an error message
+            log.log("Loading ds3231 failed, sleeping", 1)
+
+            -- Go to sleep for the interval
+            node.dsleep(interval * 60 * 1000000, 2) 
+            return
+        end
+        
+        -- Initialize the DS3231 real time clock
+        status = ds3231.init(sda, scl, 0x68, timezone)
+
+        -- Check to see if the DS3231 clock was detected
+        if not status then
+
+            -- Log an error message
+            log.log("No DS3231 clock found", 1)
+
+            -- Go to sleep for the interval
+            node.dsleep(interval * 60 * 1000000, 2) 
+            return
+        end
+
+        -- Set a timer to wait for the LED to finish
+        tmr.create():alarm(300, tmr.ALARM_SINGLE, function()
+        
+            -- Finished message
+            log.log("Finished in " .. (tmr.now()/1000) .. " ms", 3)
             
-            
-            -- Log message
-            log.log("Data saved, going to sleep...", 3)
+            -- Set the next alarm to wake up the ESP at
+            -- Setting this alarm will turn everything off until the DS3231 
+            -- turns it back on
+            ds3231.setAlarm(1, ds3231.MINUTE, 0, nextlog)
+        
+            -- Just to be safe, we'll unload the module.  
+            -- ESP should already be off already, though.
+            ds3231 = nil
+            package.loaded.ds3231 = nil
 
-            -- Give some time for everything to complete and then go to sleep
-            tmr.create():alarm(100, tmr.ALARM_SINGLE, function()
-
-                -- Sleep indefinitely until the DS3231 wakes it up
-                node.dsleep(0)
-            end)
+        end) -- End of LED timer
     
-        end)
-            
-    end)
+    end) -- End of turn off timer
+    
+end -- End of off() function
 
 
+-- ########## Startup  ##########
 
+
+-- Run the startup function()
+status = pcall(startup)
+
+-- Check if there was an error while running startup().  
+-- If so, sleep for the programmed interval
+if not status then
+
+    -- Log an error message
+    print("startup() function failed, sleeping")
+
+    -- Go to sleep for the interval
+    node.dsleep(interval * 60 * 1000000, 2) -- Go to sleep for the interval
+    return
 end
-
--- Run the main() function (which does all the measuring) right away
-startup()
