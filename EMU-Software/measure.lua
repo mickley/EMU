@@ -450,7 +450,7 @@ function main()
 
 
         -- Read the voltage before turning everything off.  
-        -- Max 6.5 volts with 330k resistor on Wemos D1 mini
+        -- Max 6.5 volts with 330k resistor on Lolin D1 mini
         volts = math.floor((adc.read(0) / 1024 * 6.5) * 1000 + 0.5) / 1000
 
 
