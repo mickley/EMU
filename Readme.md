@@ -1,4 +1,4 @@
-#EMUs
+# EMUs
 
 This repository stores code, documentation, and analyses for environmental microcontroller units (EMUs). We detail their use in [our manuscript]() for measuring aspects of microenvironment: temperature, humidity, light, and soil moisture for less than $20 for the hardware costs. However, their flexible nature means that they can be used in a variety of research situations where inexpensive sensors are required 
 
