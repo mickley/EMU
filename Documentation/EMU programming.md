@@ -26,7 +26,7 @@ The software to run an EMU consists of [Modules](/Modules/), libraries that we h
 
 **[Modules](/Modules/)**
 * [ads1115](/Modules/ads1115/) - Analog to digital converter module for soil moisture
-* [bh17150](/Modules/bh1750/) - Lux sensor module for PFD
+* [bh1750](/Modules/bh1750/) - Lux sensor module for PFD
 * [csv](/Modules/csv/) - CSV module for writing data files
 * [ds3231](/Modules/ds3231/) - Clock module for keeping time and waking up the EMU to measure
 * [logging](/Modules/logging/) - Logging module to for keeping a log file in addition to the data file
