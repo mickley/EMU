@@ -89,8 +89,8 @@ removed.
 - Be safe!
 
 *Wiring*: 
--Using pre-cut wires saves time, though it is not required.
--It is better to take your time when wiring the breadboard. After all of the components are added, it makes it more difficult to recheck the positioning of the wires. 
+- Using pre-cut wires saves time, though it is not required.
+- It is better to take your time when wiring the breadboard. After all of the components are added, it makes it more difficult to recheck the positioning of the wires. 
 
 *Waterproofing*: 
 - Make sure that when painting the sensors with the silicone conformal coating, the actual sensor portion of the components are not covered. For example, the area on the light sensor that actually does the sensing should not be covered.  Shining UV light shows whether any coating has covered this area. 
