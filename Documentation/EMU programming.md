@@ -6,7 +6,7 @@ Programming an EMU requires two steps
 
 ## Flashing the firmware
 
-Using nodemcu-pyuploader or esptool (see [Computer setup](Computer%20setup.md)), flash the firmware to the D1 Mini while connected to the computer. See the [firmware flashing instructions](/Firmware/Readme.md) for more details.
+Using nodemcu-pyuploader or esptool (see [Computer setup](Computer%20setup.md)), flash the firmware to the D1 Mini while connected to the computer. See the [firmware flashing instructions](/firmware/Readme.md) for more details.
 
 Note: Sometimes a D1 Mini is not able to set itself in firmware flashing mode when connected to the rest of the EMU.  We recommend taking it off the breadboard first. You can also force it into firmware-flashing mode by connecting pin D3 to GND and pressing the reset switch. Remove the connection when finished.
 
