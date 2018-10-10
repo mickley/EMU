@@ -6,5 +6,6 @@ If this work is useful in your research, please cite our paper: [citation].
 
 We provide the following:
 * [Detailed documentation](/Documentation) including [building EMUs](/Documentation/Building%20EMUs.md), [parts list](/Documentation/), [programming EMUs](/Documentation/EMU%20programming.md), [troubleshooting](/Documentation/Troubleshooting.md), and [circuit diagrams](/Documentation/Diagrams/).
+* EMU [operating code](/EMU-Software).
 * A [pre-built firmware](/Firmware)
 * Our [analyses and data](EMU-Analysis) used in calibrating light and soil moisture sensors and in a field test of EMUs.
