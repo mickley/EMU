@@ -70,3 +70,29 @@ Temperature sensors should be shielded from the sun, and perhaps also from the g
 Instead of buying a shield, we built one out of an inverted white plastic cup bottom, similar to [Cowles et al. 2016](https://doi.org/10.1111/gcb.13111). Subsequently, [Terando et al. 2017](http://doi.org/10.1002/ece3.3499) have done careful tests and concluded that this is not a good design and can even be worse than no shielding in some circumstances.  Instead, they recommend one built by [Holden et al. 2013](https://doi.org/10.1016/j.agrformet.2013.06.011) ([video instructions for construction](https://www.youtube.com/watch?v=LkVmJRsw5vs)) out of corrugated plastic material covered with foil tape. This shield provides similar shielding to naturally-aspirated gill shields. 
 
 Regardless of the shielding used, we recommend that researchers carefully consider their shielding design, and if it has not already been tested against a high quality shield and temperature sensor, we recommend that this be done.
+
+## Lessons Learned from Novice Builders
+
+*In General*:
+- Orientation of sensors and pins should ALWAYS be checked before anything is added or 
+removed.
+- Each sensor or module should be tested separately to ensure it’s working properly before final assembly. 
+- Safety precautions should be thoroughly examined before each process.
+
+*Soldering*: 
+- For anyone’s first time soldering it’s important to note how to properly hold the solder and soldering iron as well as to understand ventilation and safety concerns.  
+- Good ventilation (at least a fan) should be used while soldering. Safety glasses and aprons are advised. 
+- Looking up instructional videos explaining how to solder properly is advised for beginners. (Please see [Soldering](Building%20EMUs.md#soldering) for more information/videos on soldering)
+- The type of soldering tip is important.  For removing resistors, a larger flatter tip was found to be easier rather than the common pencil type tip used for soldering pins. 
+- Always turn off the soldering iron when not in use. 
+- Orientation of pins should be triple checked before soldering.
+- Be safe!
+
+*Wiring*: 
+-Using pre-cut wires saves time, though it is not required.
+-It is better to take your time when wiring the breadboard. After all of the components are added, it makes it more difficult to recheck the positioning of the wires. 
+
+*Waterproofing*: 
+- Make sure that when painting the sensors with the silicone conformal coating, the actual sensor portion of the components are not covered. For example, the area on the light sensor that actually does the sensing should not be covered.  Shining UV light shows whether any coating has covered this area. 
+- Fume hoods and ventilation should be used when using waterproofing coatings or sprays. 
+- Heat shrink tubing should be pre cut and pay attention to the size used.  Looking up instructional videos on how to properly and safely use a heat gun is advised. Alternatively, any flame source is sufficient, but safety still applies.
