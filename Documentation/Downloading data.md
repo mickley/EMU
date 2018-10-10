@@ -4,7 +4,7 @@ For most simple cases, ESPlorer works fine for downloading data files that an EM
 
 ## ESPlorer Instructions
 
-1. Connect ESPlorer to the EMU (see [EMU Programming](Documentation/EMU%20Programming.md))
+1. Connect ESPlorer to the EMU (see [EMU Programming](Documentation/EMU%20programming.md))
 2. Click on the Reload button in the right sidebar.  This should list the files on the EMU.
 3. Right click on a filename in the sidebar and select Download
 2. Note: downloading a file sometimes fails in ESPlorer, especially with larger files. Sometimes trying again works, as does using View or Edit instead of Download, or changing the baud rate in ESPlorer from 115200 to 230400 for faster download.
