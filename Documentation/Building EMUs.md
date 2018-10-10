@@ -1,6 +1,6 @@
 # Building EMUs
 
-With the [appropriate parts](Parts%20list.md), you can build your own EMUs. Our [video]() associated with the paper steps through this process, below is some additional information.
+With the [appropriate parts](Parts%20list.md), you can build your own EMUs. Our [video](https://www.youtube.com/watch?v=74yjZC-QKPY) associated with the paper steps through this process, below is some additional information.
 
 ## Soldering
 
@@ -8,7 +8,7 @@ Proper soldering takes some training or experience, and we recommend that those 
 
 Sensors and the D1 Mini generally come without the pins soldered into the circuit board. Some (e.g. the D1 Mini) come with more than one pin type. We solder these on, using the long female pin headers for the D1 Mini. One could solder wires directly to the sensors, rather than these pins, however, we prefer the pins because it allows for easy sensor replacement.
 
-Additionally, we make several small modifications to the pre-build sensor modules (see [video](), [paper supplement]()):
+Additionally, we make several small modifications to the pre-build sensor modules (see [video](https://www.youtube.com/watch?v=74yjZC-QKPY), [paper supplement]()):
 
 1. Since the BME280, BH1750, ADS1115 and DS3231 all share the same I2C wires, the pullup resistors on the SCL and SDA lines present on all four modules are redundant, wasting some electricity. We remove those on the BH1750 (marked 472), and the DS3231 clock (4x472 block across from the VCC pin).
 2. Removing the 4x472 block on the DS3231 clock also removes the pullup resistor on the SQW pin. Failure to remove this resistor prevents the clock SQW alarm pin from turning on the MOSFET switch.
