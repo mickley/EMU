@@ -35,9 +35,9 @@ After you have uploaded a module, compile it by clicking the Save&Compile button
 
 **[EMU-Software](/EMU-Software/)**
 * [config.lua](/EMU-Software/config.lua) - This script just sets a few configuration variables that are available for the main script.  We use it to set the time interval for measurements, the timezone, logging verbosity, and the data and log filenames for each EMU. This should be customized for each EMU.
-* [init.lua](/EMU-Software/init.lua) - This is a special script, that if present, is run by default by the firmware.  Ours is carefully written to prevent errors and to give the user some ways to exit the code in case there is a problem (connecting D7 to ground or setting abort=1).  Without these failsafes, code could crash, restart, and crash again endlessly, requiring a new firmware.
+* [init.lua](/EMU-Software/init.lua) - This is a special script, that if present, is run by default by the firmware.  Ours is carefully written to prevent errors and to give the user some ways to exit the code in case there is a problem (connecting D7 to ground or setting abort=1).  Without these failsafes, code could crash, restart, and crash again endlessly, requiring a new firmware. Note: An easy way to set abort=1 is provided by editing a snippet in Esplorer, to make an Abort button (see [Computer setup](Computer%20setup.md)).
 * [measure.lua](/EMU-Software/measure.lua) - This script does all the work of taking a measurement: reading the sensors and logging the data
 
-The init.lua file should not be compiled.  The other two scripts: config.lua and measure.lua are assumed to not be compiled, though they could be.  One would just need to change the name to .lc where they are loaded in init.lua.
+The init.lua file should not be compiled.  The other two scripts: config.lua and measure.lua are assumed to not be compiled, though they could be.  One would just need to change the name to .lc where they are loaded in init.lua and config.lua respectively.
 
 Once all code is uploaded, and the D1 Mini is connected to the EMU breadboard, resetting the D1 Mini should result in it taking a measurement.  If logging is enabled, there should be output shown on the command prompt of ESPlorer
