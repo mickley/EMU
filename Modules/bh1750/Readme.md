@@ -14,6 +14,9 @@ It uses the I²C protocol [BH1750FVI Datasheet](https://www.mouser.com/ds/2/348/
 * Adjustable range, sensitivity, and measurement time
 * Continuous or single measurements
 
+### Required Firmware Modules
+* i2c, tmr
+
 
 ### LCD Module Functions
 
