@@ -48,7 +48,7 @@ The logLevel setting allows us to specify which messages get logged.  This allow
 
 ## log.log()
 
-Logs a message with the specified log level.  If that log level is l <= the logLevel setting, the message will be logged.  Otherwise it'll be ignored.
+Logs a message with the specified log level.  If that log level is <= the logLevel setting, the message will be logged.  Otherwise it'll be ignored.
 
 #### Syntax
 `log.log(message, level)`
