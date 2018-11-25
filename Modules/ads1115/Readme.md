@@ -10,6 +10,9 @@ The ADS1115 is a precision analog to digital converter (ADC).  It reads the volt
 * [Sampling rate](#ads1115setrate) up to 860 samples per second 
 * A [comparator](ads1115setcomparator) which can set an alert when measurements cross either a high or low threshhold. 
 
+### Required Firmware Modules
+gpio, i2c, tmr
+
 Further information can be found in the [Datasheet](http://www.ti.com/lit/ds/symlink/ads1115.pdf)
 
 This module uses a lot of RAM: 12-14kB.  Always release the module as soon as you're done with it to free up that memory.  See below for example:
