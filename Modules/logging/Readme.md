@@ -10,6 +10,8 @@ It's especially useful because it can log all errors, warnings, messages etc. to
 * Allows messages to have different levels: eg errors are more important than warnings or debug info.
 * The level of messages that are logged can be adjusted, so that less important messages are ignored.
 
+### Required Firmware Modules
+file, rtctime
 
 ### Logging Module Functions
 
