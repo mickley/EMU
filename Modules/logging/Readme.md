@@ -11,7 +11,7 @@ It's especially useful because it can log all errors, warnings, messages etc. to
 * The level of messages that are logged can be adjusted, so that less important messages are ignored.
 
 ### Required Firmware Modules
-file, rtctime
+* file, rtctime
 
 ### Logging Module Functions
 
