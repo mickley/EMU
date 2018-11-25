@@ -11,7 +11,7 @@ The ADS1115 is a precision analog to digital converter (ADC).  It reads the volt
 * A [comparator](ads1115setcomparator) which can set an alert when measurements cross either a high or low threshhold. 
 
 ### Required Firmware Modules
-gpio, i2c, tmr
+* gpio, i2c, tmr
 
 Further information can be found in the [Datasheet](http://www.ti.com/lit/ds/symlink/ads1115.pdf)
 
