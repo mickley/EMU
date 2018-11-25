@@ -8,7 +8,7 @@ This module allows data to be written to a CSV file on the [ESP8266 SPIFFS files
 * Write a single row of data at a time, or multiple rows.
 
 ### Required Firmware Modules
-file
+* file
 
 ### LCD Module Functions
 
