@@ -38,4 +38,4 @@ FatFS disabled
 
 ### Custom firmware
 
-Custom firmware versions can be made easily at [nodemcu-build.com](https://nodemcu-build.com) (though there is a limit on the nubmer of modules), or can be [built from source](https://nodemcu.readthedocs.io/en/master/en/build/).
+Custom firmware versions can be made easily at [nodemcu-build.com](https://nodemcu-build.com) (though there is a limit on the number of modules), or can be [built from source](https://nodemcu.readthedocs.io/en/master/en/build/).
