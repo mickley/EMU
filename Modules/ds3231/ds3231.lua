@@ -14,14 +14,15 @@ Based on the nodemcu lua module for DS3231, but with many improvements:
 https://github.com/nodemcu/nodemcu-firmware/tree/master/lua_modules/ds3231
 
 ##### Public Function Reference #####
-* init()
-* config()
-* setTime()
-* getTime()
-* format()
-* rearmAlarms()
-* changeAlarmState()
-* getTemp()
+* init(SDA, SCL, [i2c_address], [timezone]) - Initialize the module, with optional timezone
+* config(mode, SQRate, BBSQW, disableOnBatt, disable32KHz, BB32KHz, TCRat) - Configure clock chip options (see readme or datasheet).
+* setTime(second, minute, hour, day, date, month, year) - Set the time for the clock
+* getTime(format, [sync]) - Get the time in the format specified by format, optionally syncing with the rtctime module.
+* format(format, second, minute, hour, dayofweek, date, month, year, tz, [sync]) - Format a time specified using the format string, optionally syncing
+* setAlarm(alarm, alarmType, second, minute, hour, daydate) - Set one of the two alarms
+* changeAlarmState(alarm, enable) - Enable or disable one of the two alarms
+* rearmAlarms() - Rearm/enable both alarms at once
+* getTemp() - Get the temperature from the internal clock chip
 
 
 ##### Required Firmware Modules #####
