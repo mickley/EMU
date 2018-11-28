@@ -32,7 +32,7 @@ The support for working with EMUs in Linux is not as good as with Windows and OS
 
 ## Setting up ESPlorer
 
-Open ESPlorer, and click on the Settings tab, where we'll make some changes
+Open ESPlorer, and click on the Settings tab, where we'll make some changes (Example screenshot below):
 
 * Uncheck AutoSave file to disk before save to ESP
 * Uncheck AutoSave file to ESP after save to disk
@@ -45,3 +45,5 @@ Open ESPlorer, and click on the Settings tab, where we'll make some changes
 * Click on the Snippets Tab.  Click Edit Snippet0.  Name it Abort, and put abort=1 in the box and click Save
 
 There's also a tutorial for using Esplorer [here](http://www.engineersgarage.com/tutorials/getting-started-esplorer-ide). and an ebook on it [here](http://esp8266.ru/download/esp8266-doc/Getting%20Started%20with%20the%20ESPlorer%20IDE%20-%20Rui%20Santos.pdf).
+
+<img src="Images/Esplorer-settings.png">
