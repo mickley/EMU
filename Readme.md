@@ -4,7 +4,7 @@ This repository stores code, documentation, and analyses for Environmental Micro
 
 If this work is useful in your research, please cite our paper:
 
-Mickley, J. G., T. E. Moore, C. D. Schlichting, A. L. DeRobertis, E. Mason, & R. Bagchi (2018). Measuring Microenvironments for Global Change: DIY Environmental Microcontroller Units (EMUs). *Methods in Ecology and Evolution*.
+**Mickley, J. G., T. E. Moore, C. D. Schlichting, A. L. DeRobertis, E. Mason, & R. Bagchi (2018). Measuring Microenvironments for Global Change: DIY Environmental Microcontroller Units (EMUs). *Methods in Ecology and Evolution*.**
 
 
 We provide the following:
