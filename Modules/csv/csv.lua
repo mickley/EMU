@@ -1,10 +1,10 @@
 --[[ 
 
 ##### CSV Module #####
-
+This module enables writing a lua table to a CSV file stored on the SPIFFS filesystem
 
 ##### Public Function Reference #####
-
+writeCSV(tbl, filename, [separator]) - Write the contents of a lua table, to a file as CSV, with optional separator charater
 
 
 ##### Required Firmware Modules #####
