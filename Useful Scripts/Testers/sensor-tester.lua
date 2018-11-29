@@ -293,9 +293,6 @@ tmr.create():alarm(4000, tmr.ALARM_SINGLE, function()
     -- Load ADS1115 module
     status, ads1115 = pcall(require, "ads1115")
 
-    -- Load the BH1750 sensor module
-    status, bh1750 = pcall(require, "bh1750")   
-
     -- Check to see if the module loaded successfully
     if status then
         
