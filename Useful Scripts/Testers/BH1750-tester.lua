@@ -21,7 +21,7 @@ gpio, i2c, tmr, uart
 
 
 -- Local variables
-local sda, scl, status, lux, valid
+local sda, scl, status, test, lux, valid
 
 -- Define the SDA and SCL pins
 sda = 1
