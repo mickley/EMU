@@ -2,7 +2,10 @@
 
 This can be used to test ADS1115 analog to digital converters
 It checks for an ADS1115 every second, and if one is present, 
-it returns the single-ended value for channel 1
+it returns the single-ended value for channel 0
+
+Additionally, if a probe module and probe are attached, it tests those as well, 
+assuming that the probe is attached and not in soil but in open air.
 
 Module requirements:
 ads1115
@@ -14,11 +17,15 @@ gpio, i2c, tmr, uart
 - 1/2/2018   JGM - Version 1.0:
     - Initial version
 
+- 11/28/2018 JGM - Version 1.1:
+    - Now checks for low and high measurements when soil probe is attached
+    - Detects both ADS1115 and soil probe
+
 --]]
 
 
 -- Local variables
-local sda, scl, status, lux, valid
+local sda, scl, status, test, value
 
 -- Define the SDA and SCL pins
 sda = 1
@@ -32,6 +39,9 @@ status, ads1115 = pcall(require, "ads1115")
 
 -- Set abort to zero to start
 abort = 0
+
+-- Abort message
+print("Press the Abort button to stop sensor checking")
 
 -- Check for a ADS1115 ADC and a measurement every second
 check:alarm(1000, tmr.ALARM_AUTO, function()
@@ -57,22 +67,41 @@ check:alarm(1000, tmr.ALARM_AUTO, function()
     end
 
     -- Initialize the ADS1115 ADC and check if it's present
-    status = ads1115.init(sda, scl)
+    test = ads1115.init(sda, scl)
 
-    -- BME sensor is present
-    if status then
+    -- ADS1115 sensor is present
+    if test then
 
         -- Set voltage to max 4.096 volts
         ads1115.setPGA(4.096)
-       
-        -- Wait 100 ms to start up and then try taking a measurement
-        tmr.create():alarm(200, tmr.ALARM_SINGLE, function()
 
-            -- Get measurement
-            value = ads1115.readADC(0)
+        -- Read channel A0 using callback function
+        ads1115.readADC(0, function(value)
 
-            -- Print status
-            print("ADS1115 present | ", value)
+
+                -- Check soil measurement: Should be 24000-27000, ideally 26000s
+                if value < 24000 then
+
+                    if value < 6000 then
+                        -- Print out the success message
+                        print("ADS1115 Ch0 present, no soil probe ", value)
+                    else
+                        -- Low measurement: connection problems
+                        print("ADS1115 Ch0 + Soil Probe present - Value low (poor connection?) ", value)
+                    end
+
+
+                elseif value > 27000 then
+
+                    -- High measurement, wiring problems too high voltage to soil module
+                    print("ADS1115 Ch0 + Soil Probe present - Value high (not 3.3v power?) ", value)
+
+                else
+
+                    -- Print out the success message
+                    print("ADS1115 Ch0 + Soil Probe present ", value)
+
+                end -- End of ADS1115 Ch0 measurement check    
 
         end)
 

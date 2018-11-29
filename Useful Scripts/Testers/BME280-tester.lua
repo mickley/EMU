@@ -16,6 +16,9 @@ bme280, gpio, i2c, tmr, uart
 - 1/2/2018   JGM - Version 1.0:
     - Initial version
 
+- 11/28/2018 JGM - Version 1.1:
+    - Now accounts for some measurements being nil
+
 --]]
 
 -- Local variables
@@ -33,6 +36,9 @@ i2c.setup(0, sda, scl, i2c.SLOW)
 
 -- Set abort to zero to start
 abort = 0
+
+-- Abort message
+print("Press the Abort button to stop sensor checking")
 
 -- Check for a BME sensor and measurements every second
 check:alarm(1000, tmr.ALARM_AUTO, function()
@@ -53,7 +59,13 @@ check:alarm(1000, tmr.ALARM_AUTO, function()
 
     end
 
-    -- Initialize the BME sensor and check if it's present
+    -- Initialize BME280 temp/humidity/pressure sensor, and check if it's present
+    -- Settings:
+    --    x16 oversampling for temp and humidity
+    --    x1 oversampling for presssure (faster measurements)
+    --    forced mode
+    --    125 ms between samples
+    --    IIR Filter = 0
     status = bme280.setup(5, 1, 5, 1, 2, 0)
 
     -- BME sensor is present
@@ -65,8 +77,21 @@ check:alarm(1000, tmr.ALARM_AUTO, function()
             -- Get measurements
             temp, pressure, humidity = bme280.read()
 
-            -- Print status
-            print("BME280 present | ", temp, pressure, humidity)
+
+            -- Check for invalid measurements
+            if temp == nil or pressure == nil or humidity == nil then
+        
+                -- At least one measurement was invalid
+                print("BME280 present, measurements missing", temp, pressure, humidity)
+        
+            else
+
+                -- BME280 passed all tests
+                print("BME280 present ", temp / 100 .. " C ", 
+                    humidity / 1000 .. " % RH ", 
+                    math.floor((pressure / 100) + 0.5) / 100 .. " kPa")
+                    
+            end            
 
         end)
 

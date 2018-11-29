@@ -14,6 +14,9 @@ gpio, i2c, tmr, uart
 - 1/2/2018   JGM - Version 1.0:
     - Initial version
 
+- 11/28/2018 JGM - Version 1.1:
+    - Now using similar code to sensor-tester.lua
+
 --]]
 
 
@@ -32,6 +35,9 @@ status, bh1750 = pcall(require, "bh1750")
 
 -- Set abort to zero to start
 abort = 0
+
+-- Abort message
+print("Press the Abort button to stop sensor checking")
 
 -- Check for a BH1750 sensor and measurements every second
 check:alarm(1000, tmr.ALARM_AUTO, function()
@@ -56,25 +62,41 @@ check:alarm(1000, tmr.ALARM_AUTO, function()
 
     end
 
-    -- Initialize the BH1750 sensor and check if it's present
-    status = bh1750.init(sda, scl, 0x23, "Continuous_H")
+    -- Initialize the bh1750 sensor and check if it's present
+    test = bh1750.init(sda, scl, 0x23, "OneTime_H")
+    
+    -- Check to see if we found the bh1750 sensor
+    if test then
 
-    -- BME sensor is present
-    if status then
-       
-        -- Wait 100 ms to start up and then try taking a measurement
-        tmr.create():alarm(200, tmr.ALARM_SINGLE, function()
+        -- Set the measurement time to the minimum: 121,556 lux
+        bh1750.setMeasurementTime(31)
 
-            -- Get measurement
-            lux, valid = bh1750.getLux()
+        -- Start getting a lux measurement
+        bh1750.getLux(function(lux, valid, raw)
 
-            -- Print status
-            print("BH1750 present | ", lux, valid)
+            -- Check lux measurement
+            if not lux then
 
+                -- Didn't find the sensor after initialized
+                print("BH1750 present, invalid measurement, no value")
+
+            elseif not valid then
+
+                -- Returned a lux measurement, but out of range
+
+                print("BH1750 present, invalid measurement", lux .. " lux")
+
+            else
+
+                -- Print status
+                print("BH1750 present, valid measurement", lux .. " lux")
+
+            end
+            
         end)
 
     -- No sensor present
-    elseif not status then
+    elseif not test then
 
         -- Print status
         print("BH1750 not present")
