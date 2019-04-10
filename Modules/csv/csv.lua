@@ -26,6 +26,12 @@ file
 - 9/20/2018 JGM - Version 0.4
     - Fixed bug when no header row was specified
     
+- 4/10/2019 JGM - Version 0.5:
+    - There's a bug in the SPIFFS filesystem that causes
+      file writes to fail as the filesystem gets full.
+      Adding code to prevent writes when over ~75% space
+      until bug is fixed.
+
 --]]
 
 
@@ -41,7 +47,7 @@ local M = {}
 -- ############### Local variables ###############
 
 local header
-local version = 0.4
+local version = 0.5
 
 -- ############### Private Functions ###############
 
@@ -71,7 +77,24 @@ function M.writeCSV(tbl, filename, separator)
 
     --sep = arg[1] or ","
     
+
+    -- Get the remaining space left
+    space, _, total = file.fsinfo()
     
+    -- Check how much space is left
+    -- If less than 25% of the filesystem space is remaining, we'd better stop
+    if space / total < 0.25 then
+
+        -- Print error message
+        print("Not enough filesystem space left to write to CSV safely")
+
+        -- Quit the function
+        return false
+
+    end
+
+
+    -- Check if the CSV file already exists on the filesystem
     if file.exists(filename) then
 
         -- Open the file in append mode
@@ -108,6 +131,7 @@ function M.writeCSV(tbl, filename, separator)
 
     -- Check to see if the file opened successfully
     if fhandle then
+
         
         -- Write the data rows
         for _, line in ipairs(tbl) do

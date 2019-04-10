@@ -52,6 +52,11 @@ file, rtctime
       Also checks to see if files were opened correctly, 
       preventing errors
     
+- 4/10/2019 JGM - Version 0.7:
+    - There's a bug in the SPIFFS filesystem that causes
+      file writes to fail as the filesystem gets full.
+      Adding code to prevent writes when over ~75% space
+      until bug is fixed.
 
 --]]
 
@@ -107,7 +112,7 @@ end
 function M.log(message, lvl)
 
     -- Local function variables
-    local space, tm, stamp, msgtype, msg
+    local space, total, tm, stamp, msgtype, msg
 
     -- Check to make sure the log level lvl is valid
     if lvl == nil or lvl < 0 or lvl > 4 or lvl ~= math.floor(lvl) then
@@ -151,11 +156,11 @@ function M.log(message, lvl)
         if tofile then
 
             -- Get the remaining space left
-            space = file.fsinfo()
+            space, _, total = file.fsinfo()
             
             -- Check how much space is left
-            -- If less than 200 bytes, we'd better be safe
-            if space < 500 then
+            -- If less than 25% of the filesystem space is remaining, we'd better stop
+            if space / total < 0.25 then
 
                 -- Print error message
                 print("Not enough filesystem space left to log safely")
@@ -163,9 +168,9 @@ function M.log(message, lvl)
                 -- Quit the function
                 return false
 
-            -- If less than 1000 bytes is left, log a warning
-            elseif space < 1000 then
-                M.log("Running out of logging space: "..space.." bytes", M.warn)
+            -- If we're within 1000 bytes of running out of usable space, log a warning
+            elseif (space - 1000) / total < 0.25 then
+                M.log("Running out of usable filesystem space: "..space.." bytes", M.warn)
             end
 
             -- Open the logfile filename for writing
