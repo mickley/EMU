@@ -1,6 +1,6 @@
 # Environmental Microcontroller Units (EMUs)
 
-<img src="Documentation/Images/IMG_6076.JPG" width="400">
+<div style="text-align: center; display: block;"><img src="Documentation/Images/IMG_6076.JPG" width="500"></div>
 
 This repository stores code, documentation, and analyses for Environmental Microcontroller Units (EMUs). We detail their use in our paper for measuring aspects of microenvironment: temperature, humidity, light, and soil moisture all for less than $20 in hardware costs. However, their flexible nature means that they can be used in a variety of research situations where inexpensive sensors are required.
 
