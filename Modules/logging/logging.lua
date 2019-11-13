@@ -58,6 +58,10 @@ file, rtctime
       Adding code to prevent writes when over ~75% space
       until bug is fixed.
 
+- 11/13/2019 JGM - Version 0.8
+    - SPIFFS bug happening when filesystem is ~70% full, 
+      changed cutoff to 70%.
+
 --]]
 
 
@@ -73,7 +77,7 @@ local M = {}
 
 -- Local variables to store various settings
 local level, filename, toprint, tofile, timezone
-local version = 0.6
+local version = 0.8
 
 -- ############### Public Functions ###############
 
@@ -159,8 +163,8 @@ function M.log(message, lvl)
             space, _, total = file.fsinfo()
             
             -- Check how much space is left
-            -- If less than 25% of the filesystem space is remaining, we'd better stop
-            if space / total < 0.25 then
+            -- If less than 30% of the filesystem space is remaining, we'd better stop
+            if space / total < 0.30 then
 
                 -- Print error message
                 print("Not enough filesystem space left to log safely")
