@@ -32,6 +32,10 @@ file
       Adding code to prevent writes when over ~75% space
       until bug is fixed.
 
+- 11/13/2019 JGM - Version 0.6
+    - SPIFFS bug happening when filesystem is ~70% full, 
+      changed cutoff to 70%.
+
 --]]
 
 
@@ -47,7 +51,7 @@ local M = {}
 -- ############### Local variables ###############
 
 local header
-local version = 0.5
+local version = 0.6
 
 -- ############### Private Functions ###############
 
@@ -82,8 +86,8 @@ function M.writeCSV(tbl, filename, separator)
     space, _, total = file.fsinfo()
     
     -- Check how much space is left
-    -- If less than 25% of the filesystem space is remaining, we'd better stop
-    if space / total < 0.25 then
+    -- If less than 30% of the filesystem space is remaining, we'd better stop
+    if space / total < 0.3 then
 
         -- Print error message
         print("Not enough filesystem space left to write to CSV safely")
